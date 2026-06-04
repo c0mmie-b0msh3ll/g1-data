@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 
 import pandas as pd
+from PIL import Image, ImageChops
 from pptx import Presentation
 from pptx.util import Inches
 from playwright.sync_api import sync_playwright
@@ -63,65 +64,60 @@ def build_pipeline_diagram() -> Path:
         os.environ["PATH"] = str(graphviz_bin) + os.pathsep + os.environ.get("PATH", "")
     target_no_ext = CHARTS / "streaming-pipeline-diagram"
     with Diagram(
-        "ShopX Streaming Observability + RCA Pipeline",
+        "ShopX Live Anomaly Detection and RCA Pipeline",
         filename=str(target_no_ext),
         outformat="png",
         show=False,
         direction="LR",
         graph_attr={
             "bgcolor": "transparent",
-            "pad": "0.25",
-            "nodesep": "0.55",
-            "ranksep": "0.75",
-            "splines": "ortho",
+            "pad": "0.45",
+            "nodesep": "1.0",
+            "ranksep": "1.1",
+            "splines": "spline",
             "fontname": "Arial",
+            "fontsize": "24",
+            "dpi": "180",
         },
-        node_attr={"fontname": "Arial", "fontsize": "12"},
-        edge_attr={"fontname": "Arial", "fontsize": "10", "color": "#52606d"},
+        node_attr={"fontname": "Arial", "fontsize": "18"},
+        edge_attr={"fontname": "Arial", "fontsize": "15", "color": "#52606d", "penwidth": "2"},
     ):
-        user = Users("Checkout users")
-        with Cluster("Microservices"):
-            api = Server("api-gateway")
-            cart = Server("cart-service\norigin candidate")
-            order = Server("order-service")
-            payment = Server("payment-service")
-            product = Server("product-service")
+        services = Server("ShopX services\napi/cart/order/payment")
+        otel = Prometheus("OpenTelemetry\nCollector")
+        kafka = Kafka("Kafka\ntelemetry topics")
 
-        with Cluster("Collection"):
-            otel = Prometheus("OpenTelemetry\nSDK + Collector")
-
-        with Cluster("Transport"):
-            kafka = Kafka("Kafka topics\nmetrics / logs / traces")
-
-        with Cluster("Stream Processing"):
-            flink = Flink("Flink jobs\nfeatures + windows")
-            mad = Redis("MAD + IF\nscores")
+        with Cluster("Stream processing"):
+            flink = Flink("Flink windows\nfeature extraction")
+            mad = Redis("MAD + IF\nmetric alerts")
             drain = Redis("Drain3\nlog templates")
 
-        with Cluster("Hot + Cold Storage"):
-            vm = Prometheus("VictoriaMetrics")
-            logs = Clickhouse("Loki / ClickHouse")
-            traces = Jaeger("Jaeger")
-            s3 = S3("S3 Parquet\nreplay/archive")
+        with Cluster("Stores"):
+            hot = Clickhouse("Hot stores\nmetrics + logs")
+            cold = S3("S3 Parquet\nreplay archive")
 
         dash = Grafana("RCA dashboard\nWHEN / WHERE / WHAT")
 
-        user >> api
-        api >> cart
-        api >> order
-        order >> cart
-        payment >> cart
-        cart >> product
-        [api, cart, order, payment, product] >> Edge(label="metrics/logs/traces") >> otel
-        otel >> Edge(label="buffer + replay") >> kafka
-        kafka >> flink
+        services >> Edge(label="metrics / logs / traces") >> otel
+        otel >> Edge(label="batch + enrich") >> kafka
+        kafka >> Edge(label="stream") >> flink
         flink >> mad
         flink >> drain
-        kafka >> Edge(label="raw archive") >> s3
-        mad >> vm
-        drain >> logs
-        flink >> traces
-        [vm, logs, traces, s3] >> dash
+        kafka >> Edge(label="raw replay") >> cold
+        [mad, drain] >> Edge(label="evidence") >> hot
+        [hot, cold] >> Edge(label="query + replay") >> dash
+    image = Image.open(PIPELINE_DIAGRAM).convert("RGBA")
+    alpha_bbox = image.getchannel("A").getbbox()
+    rgb = image.convert("RGB")
+    white = Image.new("RGB", rgb.size, "white")
+    diff = ImageChops.difference(rgb, white)
+    white_bbox = diff.point(lambda p: 255 if p > 12 else 0).getbbox()
+    bbox = white_bbox or alpha_bbox
+    if bbox:
+        image = image.crop(bbox)
+        pad = 36
+        padded = Image.new("RGBA", (image.width + pad * 2, image.height + pad * 2), (255, 255, 255, 0))
+        padded.paste(image, (pad, pad), image)
+        padded.save(PIPELINE_DIAGRAM)
     return PIPELINE_DIAGRAM
 
 
@@ -203,14 +199,14 @@ def build_html() -> str:
 
     css = """
     :root{--bg:#080b10;--panel:#111821;--panel2:#172130;--ink:#f5f2ea;--muted:#9aa7b4;--line:#2b3746;--red:#ff5d4a;--orange:#ffb14a;--blue:#59a6ff;--green:#51d19d}
-    *{box-sizing:border-box} body{margin:0;background:#030507;color:var(--ink);font-family:Inter,Arial,sans-serif}
+    *{box-sizing:border-box} body{margin:0;background:#030507;color:var(--ink);font-family:"Segoe UI",Arial,sans-serif;text-rendering:geometricPrecision}
     .deck{width:1600px;margin:0 auto}.slide{width:1600px;height:900px;position:relative;overflow:hidden;padding:58px 72px;background:radial-gradient(circle at 82% 12%,#26384d 0,#101722 26%,#080b10 58%);}
     .slide.light{background:linear-gradient(135deg,#f7f0e3,#fefcf7);color:#13202c}.slide.light .eyebrow{color:#8e3b2f}.slide.light .sub,.slide.light .muted{color:#52606d}.slide.light .card,.slide.light .panel{background:#fffdf8;border-color:#dfd4c4;color:#13202c}.slide.light table td,.slide.light table th{border-color:#dfd4c4}
-    .eyebrow{font-size:18px;letter-spacing:.08em;text-transform:uppercase;color:#ff725f;font-weight:800}.title{font-size:56px;line-height:1.04;font-weight:900;letter-spacing:-.018em;max-width:1080px;margin:28px 0 0}.sub{font-size:23px;line-height:1.36;color:var(--muted);max-width:980px;margin-top:20px}
-    .grid{display:grid;gap:22px}.cols3{grid-template-columns:repeat(3,1fr)}.cols4{grid-template-columns:repeat(4,1fr)}.card,.panel{background:linear-gradient(180deg,rgba(255,255,255,.075),rgba(255,255,255,.035));border:1px solid var(--line);border-radius:22px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.18)}.card h3{margin:0 0 14px;font-size:18px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}.big{font-size:42px;font-weight:900}.note{font-size:20px;line-height:1.35;color:var(--muted)}.accent{color:var(--red)}.blue{color:var(--blue)}.green{color:var(--green)}.orange{color:var(--orange)}
+    .eyebrow{font-size:18px;line-height:1.35;letter-spacing:.08em;text-transform:uppercase;color:#ff725f;font-weight:800}.title{font-size:52px;line-height:1.16;font-weight:800;letter-spacing:0;max-width:1140px;margin:24px 0 0}.sub{font-size:22px;line-height:1.45;color:var(--muted);max-width:1040px;margin-top:18px}
+    .grid{display:grid;gap:22px}.cols3{grid-template-columns:repeat(3,1fr)}.cols4{grid-template-columns:repeat(4,1fr)}.card,.panel{background:linear-gradient(180deg,rgba(255,255,255,.075),rgba(255,255,255,.035));border:1px solid var(--line);border-radius:22px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.18)}.card h3{margin:0 0 14px;font-size:18px;line-height:1.28;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}.big{font-size:42px;line-height:1.16;font-weight:800}.note{font-size:20px;line-height:1.42;color:var(--muted)}.accent{color:var(--red)}.blue{color:var(--blue)}.green{color:var(--green)}.orange{color:var(--orange)}
     .footer{position:absolute;left:72px;right:72px;bottom:30px;border-top:1px solid rgba(150,160,170,.25);padding-top:12px;color:#7f8b98;font-size:13px;display:flex;justify-content:space-between}
     .figure{background:white;border-radius:18px;padding:14px;border:1px solid rgba(255,255,255,.2)}.figure img{width:100%;height:100%;object-fit:contain;display:block}.code{white-space:pre-wrap;font-family:Consolas,monospace;font-size:18px;line-height:1.35;background:#0c121a;border:1px solid #263342;border-radius:18px;padding:22px;color:#dbe7f3}
-    table{width:100%;border-collapse:collapse;font-size:16px}th,td{border-bottom:1px solid var(--line);padding:10px 12px;text-align:left;vertical-align:top}th{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}.timeline{position:absolute;left:130px;top:240px;width:1220px}.step{display:grid;grid-template-columns:130px 170px 1fr;gap:22px;align-items:center;margin:19px 0}.dot{width:22px;height:22px;border-radius:50%;background:var(--red);box-shadow:0 0 0 8px rgba(255,93,74,.12)}.rail{position:absolute;left:249px;top:258px;width:4px;height:470px;background:#344252}.tag{font-size:15px;color:var(--muted);text-transform:uppercase;font-weight:800}.time{font-size:24px;font-weight:900}.desc{font-size:23px}.kpi{font-size:78px;font-weight:950;letter-spacing:-.05em}.split{display:grid;grid-template-columns:1.1fr .9fr;gap:34px;align-items:center}.small{font-size:15px}.quote{font-size:34px;line-height:1.2;font-weight:850}.pill{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:10px 15px;color:var(--muted);font-weight:800;margin-right:8px}.pipeline{display:grid;grid-template-columns:repeat(5,1fr);gap:18px;margin-top:62px}.pipe-card{height:210px}.arrow{position:absolute;top:390px;width:34px;height:4px;background:#617085}.arrow:after{content:"";position:absolute;right:-8px;top:-6px;border-left:10px solid #617085;border-top:8px solid transparent;border-bottom:8px solid transparent}
+    table{width:100%;border-collapse:collapse;font-size:16px}th,td{border-bottom:1px solid var(--line);padding:10px 12px;text-align:left;vertical-align:top}th{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}.timeline{position:absolute;left:130px;top:240px;width:1220px}.step{display:grid;grid-template-columns:130px 170px 1fr;gap:22px;align-items:center;margin:19px 0}.dot{width:22px;height:22px;border-radius:50%;background:var(--red);box-shadow:0 0 0 8px rgba(255,93,74,.12)}.rail{position:absolute;left:249px;top:258px;width:4px;height:470px;background:#344252}.tag{font-size:15px;line-height:1.3;color:var(--muted);text-transform:uppercase;font-weight:800}.time{font-size:24px;line-height:1.25;font-weight:800}.desc{font-size:23px;line-height:1.32}.kpi{font-size:76px;line-height:1.08;font-weight:800;letter-spacing:0}.split{display:grid;grid-template-columns:1.1fr .9fr;gap:34px;align-items:center}.small{font-size:15px}.quote{font-size:32px;line-height:1.28;font-weight:800}.pill{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:10px 15px;color:var(--muted);font-weight:800;margin-right:8px}.pipeline{display:grid;grid-template-columns:repeat(5,1fr);gap:18px;margin-top:62px}.pipe-card{height:210px}.arrow{position:absolute;top:390px;width:34px;height:4px;background:#617085}.arrow:after{content:"";position:absolute;right:-8px;top:-6px;border-left:10px solid #617085;border-top:8px solid transparent;border-bottom:8px solid transparent}
     .flow{display:grid;gap:18px;margin-top:38px}.flow5{grid-template-columns:repeat(5,1fr)}.flow4{grid-template-columns:repeat(4,1fr)}.flow3{grid-template-columns:repeat(3,1fr)}.flow-card{position:relative;min-height:168px}.flow-card:after{content:"";position:absolute;right:-18px;top:75px;width:18px;height:3px;background:#9aa7b4}.flow-card:last-child:after{display:none}.num{width:42px;height:42px;border-radius:14px;background:var(--red);color:white;display:grid;place-items:center;font-weight:900;font-size:22px;margin-bottom:18px}.flow-card h3{font-size:22px;color:var(--ink);text-transform:none;letter-spacing:0}.dark .flow-card h3{color:var(--ink)}.live-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:34px}.lane-title{font-size:24px;font-weight:900;margin-bottom:12px}.mini-list{font-size:19px;line-height:1.38;color:var(--muted);margin:0;padding-left:22px}.matrix{display:grid;grid-template-columns:260px 1fr 1fr;gap:0;margin-top:34px;border:1px solid var(--line);border-radius:22px;overflow:hidden}.matrix>div{padding:18px 20px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);font-size:18px}.matrix>div:nth-child(3n){border-right:0}.matrix .head{font-weight:900;background:rgba(255,255,255,.08);color:var(--ink)}.light .matrix .head{background:#efe7da}.matrix .label{font-weight:900;color:var(--red)}
     """
 
@@ -343,6 +339,21 @@ def build_html() -> str:
 
     slides.append(f"""
     <section class="slide light">
+      <div class="eyebrow">Python diagrams asset</div>
+      <div class="title" style="font-size:42px;max-width:1320px">Generated production pipeline diagram, simplified for slide readability.</div>
+      <div class="split" style="grid-template-columns:1.62fr .58fr;margin-top:24px;align-items:stretch">
+        <div class="figure" style="height:470px;padding:16px"><img src="{b64(PIPELINE_DIAGRAM)}"></div>
+        <div class="grid" style="gap:14px">
+          <div class="card" style="padding:18px 20px;min-height:140px"><h3>Ingest</h3><div class="big blue" style="font-size:30px">OTel -> Kafka</div><div class="note" style="font-size:17px">Collector enriches; Kafka buffers and enables replay.</div></div>
+          <div class="card" style="padding:18px 20px;min-height:140px"><h3>Detect</h3><div class="big accent" style="font-size:30px">Flink + MAD/IF</div><div class="note" style="font-size:17px">Windowed features, metric alerts, and Drain3 templates.</div></div>
+          <div class="card" style="padding:18px 20px;min-height:140px"><h3>RCA</h3><div class="big green" style="font-size:30px">Dashboard</div><div class="note" style="font-size:17px">Hot stores and replay archive support evidence ordering.</div></div>
+        </div>
+      </div>
+      {footer(10,'Generated by Python diagrams package in tools/build_html_powerpoint.py')}
+    </section>""")
+
+    slides.append(f"""
+    <section class="slide light">
       <div class="eyebrow">Live anomaly detection + RCA pipeline</div>
       <div class="title" style="font-size:44px;max-width:1280px">Production flow: telemetry được ingest liên tục, detector chạy theo window, RCA ghép evidence theo thời gian.</div>
       <div class="flow flow5">
@@ -355,7 +366,7 @@ def build_html() -> str:
       <div class="panel" style="margin-top:42px">
         <span class="quote" style="font-size:30px">Early alert target: memory slope + GC pause + cache eviction template count + cart p99/5xx.</span>
       </div>
-      {footer(10,'Production scenario synthesized from ARCHITECTURE.md and DATA_PIPELINE_PRESENTATION.md; Python diagrams asset generated separately')}
+      {footer(11,'Production scenario synthesized from ARCHITECTURE.md and DATA_PIPELINE_PRESENTATION.md')}
     </section>""")
 
     slides.append(f"""
@@ -389,7 +400,7 @@ def build_html() -> str:
         <div class="label">Processing</div><div>Python state machine, MAD thresholds, Drain3 templates</div><div>Flink window jobs + model workers</div>
         <div class="label">RCA</div><div>Rule-based evidence gate writes `rca_timeline.json`</div><div>RCA service correlates metric/log/trace evidence continuously</div>
       </div>
-      {footer(11,'w1/lab/realtime.py, outputs/realtime/*.jsonl, outputs/realtime/*.json')}
+      {footer(12,'w1/lab/realtime.py, outputs/realtime/*.jsonl, outputs/realtime/*.json')}
     </section>""")
 
     slides.append(f"""
@@ -407,7 +418,7 @@ def build_html() -> str:
         <div class="card"><h3>Detection stream</h3><div class="big accent">alerts.jsonl</div><div class="note">metric + log-template alerts</div></div>
         <div class="card"><h3>RCA output</h3><div class="big green">hypotheses.json</div><div class="note">cart-service ranked as origin candidate</div></div>
       </div>
-      {footer(12,'realtime_dashboard.py snapshot and realtime.py replay pipeline')}
+      {footer(13,'realtime_dashboard.py snapshot and realtime.py replay pipeline')}
     </section>""")
 
     slides.append(f"""
@@ -422,7 +433,7 @@ def build_html() -> str:
         <div class="card"><h3>ADR-05: Logs</h3><div class="big blue">Drain3</div><div class="note"><b>Context:</b> logs structured but dynamic params.<br><b>Decision:</b> template mining.<br><b>Trade-off:</b> calibration needed.</div></div>
         <div class="card"><h3>ADR-06: Storage</h3><div class="big orange">Hot + cold</div><div class="note"><b>Context:</b> query recent + replay history.<br><b>Decision:</b> VM/Loki/S3.<br><b>Trade-off:</b> multiple stores.</div></div>
       </div>
-      {footer(13,'ADR content synthesized from ARCHITECTURE.md and DATA_PIPELINE_PRESENTATION.md')}
+      {footer(14,'ADR content synthesized from ARCHITECTURE.md and DATA_PIPELINE_PRESENTATION.md')}
     </section>""")
 
     slides.append(f"""
@@ -435,7 +446,7 @@ def build_html() -> str:
         <div class="card"><h3>Ops</h3><div class="big green">guardrail</div><div class="note">restart loop + OOMKilled + downstream blast radius</div></div>
       </div>
       <div class="panel" style="position:absolute;left:120px;right:120px;bottom:140px;text-align:center"><span class="quote">Metrics answer WHEN. Log templates answer WHERE. Evidence ordering supports WHAT.</span></div>
-      {footer(14,'Final synthesis from repo artifacts')}
+      {footer(15,'Final synthesis from repo artifacts')}
     </section>""")
 
     return f"<!doctype html><html><head><meta charset='utf-8'><style>{css}</style></head><body><main class='deck'>{''.join(slides)}</main></body></html>"
