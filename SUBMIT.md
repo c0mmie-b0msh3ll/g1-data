@@ -8,6 +8,6 @@ Our analysis treated the incident as an evidence-ordering problem instead of sta
 
 - Member 1: metrics validation and robust MAD anomaly analysis.
 - Member 2: IsolationForest and EWMA comparison.
-- Member 3: log preprocessing and Drain-style template calibration.
+- Member 3: log preprocessing and Drain3 template calibration.
 - Member 4: incident timeline and root-cause synthesis.
 - Member 5: dashboard, charts, and report packaging.

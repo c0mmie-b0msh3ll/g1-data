@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CloudWatch-Style Incident Dashboard</title>
+<script src="/static/plotly.min.js"></script>
+<style>
+:root { --bg:#0b1018; --panel:#111827; --panel2:#0f1724; --line:#263244; --ink:#e6edf3; --muted:#8b949e; --blue:#58a6ff; --green:#3fb950; --yellow:#d29922; --red:#f85149; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--ink); font-family:Segoe UI, Arial, sans-serif; }
+header { display:flex; justify-content:space-between; gap:16px; align-items:center; padding:14px 18px; border-bottom:1px solid var(--line); background:#090e16; position:sticky; top:0; z-index:2; }
+h1 { margin:0; font-size:18px; font-weight:700; }
+.sub { margin-top:4px; color:var(--muted); font-size:12px; }
+.controls { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+button, select { border:1px solid var(--line); border-radius:6px; background:#1f6feb; color:white; padding:8px 10px; font-weight:700; cursor:pointer; }
+button.secondary, select { background:#161b22; color:var(--ink); }
+button:disabled { opacity:.55; cursor:wait; }
+main { padding:14px; display:grid; gap:12px; }
+.top { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; }
+.grid { display:grid; grid-template-columns:repeat(4,minmax(260px,1fr)); gap:10px; }
+.lower { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.panel { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:10px; min-width:0; }
+.k { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+.v { margin-top:6px; font-size:20px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.chart { height:205px; }
+.panel h2 { margin:0 0 8px; font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+.panel-title { display:flex; justify-content:space-between; gap:8px; align-items:baseline; }
+.metric-name { color:var(--muted); font-size:11px; }
+table { width:100%; border-collapse:collapse; table-layout:fixed; font-size:12px; }
+th,td { padding:7px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; overflow-wrap:anywhere; }
+th { color:var(--muted); font-weight:700; }
+.empty { color:var(--muted); padding:8px 0; }
+.badge { display:inline-block; border-radius:999px; padding:3px 8px; font-size:11px; font-weight:800; background:#30363d; color:var(--muted); text-transform:uppercase; }
+.badge.normal { color:var(--green); background:#12351f; }
+.badge.running { color:var(--blue); background:#102b45; }
+.badge.paused { color:var(--yellow); background:#3b2d0f; }
+.badge.complete,.badge.high { color:var(--green); background:#12351f; }
+.badge.tentative { color:var(--yellow); background:#3b2d0f; }
+.badge.none { color:var(--muted); }
+.timeline { display:grid; gap:8px; }
+.step { border-left:3px solid var(--blue); background:var(--panel2); padding:8px; border-radius:5px; }
+.step strong { display:block; }
+.step span { color:var(--muted); font-size:11px; }
+@media (max-width:1100px) { .grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .top,.lower { grid-template-columns:1fr 1fr; } }
+@media (max-width:680px) { header { display:block; } .controls { margin-top:10px; } .grid,.top,.lower { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Live Incident Dashboard</h1>
+    <div class="sub">Pre-incident metrics move continuously. Incident replay reveals detector evidence progressively from the first 6-hour baseline.</div>
+  </div>
+  <div class="controls">
+    <button id="simulate">Simulate Incident</button>
+    <button id="pause" class="secondary">Pause</button>
+    <button id="reset" class="secondary">Reset</button>
+    <select id="speed" title="Replay speed"><option value="30">30x</option><option value="60" selected>60x</option><option value="120">120x</option><option value="240">240x</option><option value="480">480x</option></select>
+  </div>
+</header>
+<main>
+  <section class="top">
+    <div class="panel"><div class="k">Session</div><div id="status" class="v"><span class="badge">loading</span></div></div>
+    <div class="panel"><div class="k">Cursor</div><div id="cursor" class="v">...</div></div>
+    <div class="panel"><div class="k">Alerts</div><div id="alertCount" class="v">0</div></div>
+    <div class="panel"><div class="k">RCA</div><div id="rcaSummary" class="v">No evidence</div></div>
+  </section>
+  <section id="charts" class="grid"></section>
+  <section class="lower">
+    <div class="panel"><h2>Active Alerts</h2><div id="alerts" class="empty">No incident alerts.</div></div>
+    <div class="panel"><h2>RCA Evidence Gate</h2><div id="rca" class="empty">RCA is empty during normal mode.</div></div>
+  </section>
+  <section class="lower">
+    <div class="panel"><h2>Recent Detector Events</h2><div id="events" class="empty">No detector events.</div></div>
+    <div class="panel"><h2>Recent Incident Logs</h2><div id="logs" class="empty">No incident logs.</div></div>
+  </section>
+</main>
+<script>
+const chartRoot = document.getElementById("charts");
+let chartIds = new Set();
+let latestStatus = "normal";
+let stateLoading = false;
+const DEFAULT_CHARTS = {
+  cart_memory: { title: "cart memory usage", service: "cart-service", metric: "memory_usage_bytes" },
+  cart_gc: { title: "cart GC pause", service: "cart-service", metric: "jvm_gc_pause_ms_avg" },
+  cart_latency: { title: "cart p99 latency", service: "cart-service", metric: "http_p99_latency_ms" },
+  cart_5xx: { title: "cart 5xx rate", service: "cart-service", metric: "http_5xx_rate" },
+  cart_restarts: { title: "cart restart count", service: "cart-service", metric: "container_restart_count" },
+  gateway_cart_errors: { title: "api-gateway cart upstream errors", service: "api-gateway", metric: "cart_upstream_error_rate" },
+  order_timeouts: { title: "order upstream timeouts", service: "order-service", metric: "upstream_timeout_rate" },
+  payment_timeouts: { title: "payment upstream timeouts", service: "payment-service", metric: "upstream_timeout_rate" }
+};
+
+function esc(value) {
+  return String(value ?? "").replace(/[&<>"']/g, ch => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[ch]));
+}
+function table(rows, cols) {
+  if (!rows || !rows.length) return '<div class="empty">No rows.</div>';
+  return `<table><thead><tr>${cols.map(c => `<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>` +
+    rows.map(r => `<tr>${cols.map(c => `<td>${esc(typeof r[c] === "object" ? JSON.stringify(r[c]) : r[c])}</td>`).join("")}</tr>`).join("") +
+    "</tbody></table>";
+}
+function ensureCharts(charts) {
+  for (const [id, cfg] of Object.entries(charts)) {
+    if (chartIds.has(id)) continue;
+    chartIds.add(id);
+    chartRoot.insertAdjacentHTML("beforeend", `<div class="panel"><div class="panel-title"><h2>${esc(cfg.title)}</h2><span class="metric-name">${esc(cfg.service)}/${esc(cfg.metric)}</span></div><div id="${esc(id)}" class="chart"><div class="empty">Waiting for samples...</div></div></div>`);
+  }
+}
+function drawChart(id, cfg) {
+  if (!cfg.x || !cfg.x.length) return;
+  const hover = (cfg.x || []).map((x, i) => `${cfg.service}<br>${cfg.metric}<br>${cfg.timestamps?.[i] || ""}<br>value: ${cfg.y[i]} ${cfg.unit}<br>threshold: ${cfg.threshold ?? "n/a"}`);
+  const traces = [{ x: cfg.x, y: cfg.y, type: "scatter", mode: "lines", line: { color: cfg.color, width: 2 }, text: hover, hovertemplate: "%{text}<extra></extra>" }];
+  if (cfg.threshold != null && cfg.x && cfg.x.length) {
+    traces.push({ x: cfg.x, y: cfg.x.map(() => cfg.threshold), type: "scatter", mode: "lines", line: { color: "#f85149", width: 1, dash: "dot" }, hoverinfo: "skip", showlegend: false });
+  }
+  const key = `${cfg.x?.[0] || ""}|${cfg.x?.[cfg.x.length - 1] || ""}|${cfg.y?.[cfg.y.length - 1] ?? ""}|${cfg.threshold ?? ""}`;
+  const el = document.getElementById(id);
+  if (el.dataset.renderKey === key) return;
+  el.dataset.renderKey = key;
+  Plotly.react(id, traces, {
+    margin: { l: 44, r: 10, t: 8, b: 35 },
+    paper_bgcolor: "#111827",
+    plot_bgcolor: "#0f1724",
+    font: { color: "#8b949e", size: 10 },
+    xaxis: { gridcolor: "#263244", title: { text: "recent samples", font: { size: 10 } }, showticklabels: false, fixedrange: true },
+    yaxis: { gridcolor: "#263244", range: cfg.y_range, fixedrange: true },
+    showlegend: false,
+    uirevision: "incident-dashboard"
+  }, { responsive: true, displayModeBar: false });
+}
+function renderRca(rca) {
+  const top = rca.hypothesis;
+  document.getElementById("rcaSummary").innerHTML = `<span class="badge ${esc(rca.status)}">${esc(rca.status)}</span> ${esc(top?.root_cause_service || "")}`;
+  if (rca.status === "none") {
+    document.getElementById("rca").innerHTML = '<div class="empty">RCA is empty until cart pressure and detector evidence arrive.</div>';
+    return;
+  }
+  const timeline = (rca.timeline || []).map(row => `<div class="step"><strong>${esc(row.stage)} - ${esc(row.service)}</strong><span>${esc(row.timestamp)}</span><div>${esc(row.evidence)}</div></div>`).join("");
+  document.getElementById("rca").innerHTML = `<div><span class="badge ${esc(rca.status)}">${esc(rca.confidence)}</span> ${esc(top.root_cause)}</div><div class="timeline" style="margin-top:10px">${timeline || '<div class="empty">Waiting for correlated timeline evidence.</div>'}</div>`;
+}
+function render(data) {
+  latestStatus = data.session.status;
+  document.getElementById("status").innerHTML = `<span class="badge ${esc(data.session.status)}">${esc(data.session.status)}</span> ${esc(data.session.speed)}x`;
+  document.getElementById("cursor").textContent = data.session.cursor;
+  document.getElementById("alertCount").textContent = data.counts.alerts_visible;
+  document.getElementById("speed").value = String(data.session.speed);
+  document.getElementById("pause").textContent = data.session.status === "paused" ? "Resume" : "Pause";
+  ensureCharts(data.charts);
+  for (const [id, cfg] of Object.entries(data.charts)) drawChart(id, cfg);
+  document.getElementById("alerts").innerHTML = table(data.active_alerts, ["timestamp", "alert_type", "service", "metric", "severity", "summary"]);
+  document.getElementById("events").innerHTML = table(data.recent_events, ["timestamp", "event_type", "service", "metric", "value", "threshold"]);
+  document.getElementById("logs").innerHTML = table(data.recent_logs, ["timestamp", "service", "level", "message"]);
+  renderRca(data.rca);
+}
+async function api(path, body) {
+  const res = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "request failed");
+  render(data);
+}
+async function load() {
+  if (stateLoading) return;
+  stateLoading = true;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+  try {
+    const res = await fetch("/api/state", { signal: controller.signal });
+    render(await res.json());
+  } catch (err) {
+    document.getElementById("status").innerHTML = '<span class="badge failed">state delayed</span>';
+  } finally {
+    clearTimeout(timeout);
+    stateLoading = false;
+  }
+}
+document.getElementById("simulate").onclick = () => api("/api/simulate");
+document.getElementById("reset").onclick = () => api("/api/reset");
+document.getElementById("pause").onclick = () => api(latestStatus === "paused" ? "/api/resume" : "/api/pause");
+document.getElementById("speed").onchange = e => api("/api/speed", { speed: Number(e.target.value) });
+ensureCharts(DEFAULT_CHARTS);
+load();
+setInterval(load, 2000);
+</script>
+</body>
+</html>

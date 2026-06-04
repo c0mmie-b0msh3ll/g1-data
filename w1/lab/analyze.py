@@ -9,6 +9,9 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from drain3 import TemplateMiner
+from drain3.masking import MaskingInstruction
+from drain3.template_miner_config import TemplateMinerConfig
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import RobustScaler
 
@@ -338,39 +341,63 @@ def detector_observability(comparison: pd.DataFrame) -> pd.DataFrame:
     return observability
 
 
-def preprocess_template(message: str, sim_th: float, parametrize_numeric_tokens: bool = True) -> str:
-    text = message
-    text = re.sub(r"\b[0-9a-f]{12,}\b", "<HEX>", text, flags=re.I)
-    text = re.sub(r"\bORD-\d+\b", "ORD-<NUM>", text)
-    text = re.sub(r"\buserId=\d+\b", "userId=<NUM>", text)
-    text = re.sub(r"\borderId=\d+\b", "orderId=<NUM>", text)
-    if parametrize_numeric_tokens:
-        text = re.sub(r"(?<=status=)\d+", "<NUM>", text)
-        text = re.sub(r"(?<=pause=)\d+", "<NUM>", text)
-        text = re.sub(r"(?<=heap=)\d+", "<NUM>", text)
-        text = re.sub(r"(?<=startup_ms=)\d+", "<NUM>", text)
-        text = re.sub(r"(?<=after )\d+(?=ms)", "<NUM>", text)
-        text = re.sub(r"(?<=duration_ms=)\d+", "<NUM>", text)
-        text = re.sub(r"\b\d+\b", "<NUM>", text)
-    if sim_th <= 0.4:
-        # Low similarity settings are represented as coarse families to document over-merge risk.
-        text = re.sub(r"Cart service (timeout after <NUM>ms|returned 5xx status=<NUM>)", "Cart service upstream failure <PARAM>", text)
-        text = re.sub(r"ProductCatalogCache (eviction failed: heap pressure too high|loaded <NUM> entries)", "ProductCatalogCache event <PARAM>", text)
-    elif sim_th <= 0.5:
-        text = re.sub(r"Cart service returned 5xx status=<NUM>", "Cart service returned 5xx status=<PARAM>", text)
-    return text
+def build_drain3_config(sim_th: float | None = None, depth: int | None = None) -> TemplateMinerConfig:
+    config = TemplateMinerConfig()
+    config.drain_sim_th = SELECTED_DRAIN["drain_sim_th"] if sim_th is None else sim_th
+    config.drain_depth = SELECTED_DRAIN["drain_depth"] if depth is None else depth
+    config.drain_max_children = SELECTED_DRAIN["drain_max_children"]
+    config.parametrize_numeric_tokens = SELECTED_DRAIN["parametrize_numeric_tokens"]
+    config.masking_instructions = [
+        MaskingInstruction(r"\b[0-9a-f]{12,}\b", "HEX"),
+        MaskingInstruction(r"\bORD-\d+\b", "ORDER_ID"),
+        MaskingInstruction(r"(?<=userId=)\d+", "NUM"),
+        MaskingInstruction(r"(?<=orderId=)\d+", "NUM"),
+        MaskingInstruction(r"(?<=status=)\d+", "NUM"),
+        MaskingInstruction(r"(?<=pause=)\d+", "NUM"),
+        MaskingInstruction(r"(?<=heap=)\d+", "NUM"),
+        MaskingInstruction(r"(?<=startup_ms=)\d+", "NUM"),
+        MaskingInstruction(r"(?<=after )\d+(?=ms)", "NUM"),
+        MaskingInstruction(r"(?<=duration_ms=)\d+", "NUM"),
+    ]
+    return config
+
+
+def new_drain3_miner(sim_th: float | None = None, depth: int | None = None) -> TemplateMiner:
+    return TemplateMiner(config=build_drain3_config(sim_th, depth))
+
+
+def assign_drain3_templates(logs: pd.DataFrame, miner: TemplateMiner | None = None) -> pd.DataFrame:
+    miner = miner or new_drain3_miner()
+    for message in logs["message"]:
+        miner.add_log_message(str(message))
+
+    rows = []
+    for _, row in logs.iterrows():
+        cluster = miner.match(str(row["message"]), full_search_strategy="always")
+        if cluster is None:
+            result = miner.add_log_message(str(row["message"]))
+            cluster_id = int(result["cluster_id"])
+            template = result["template_mined"]
+        else:
+            cluster_id = int(cluster.cluster_id)
+            template = cluster.get_template()
+        rows.append({"cluster_id": cluster_id, "template": template})
+    assigned = logs.copy()
+    assigned[["cluster_id", "template"]] = pd.DataFrame(rows, index=assigned.index)
+    return assigned
 
 
 def log_template_analysis(logs: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     comparison_rows = []
     for sim_th in (0.4, 0.5, 0.6):
         for depth in (4, 5):
-            templates = logs["message"].map(lambda m: preprocess_template(m, sim_th)).nunique()
+            assigned = assign_drain3_templates(logs, new_drain3_miner(sim_th, depth))
+            templates = assigned["template"].nunique()
             key_coverage = {}
             for key in ["GC overhead", "ProductCatalogCache eviction failed", "OOMKilled", "Cart service timeout", "Cart service returned 5xx"]:
-                key_coverage[key] = logs.loc[logs["message"].str.contains(key, case=False, na=False), "message"].map(
-                    lambda m: preprocess_template(m, sim_th)
-                ).nunique()
+                key_coverage[key] = assigned.loc[
+                    assigned["message"].str.contains(key, case=False, na=False), "template"
+                ].nunique()
             comparison_rows.append(
                 {
                     "sim_th": sim_th,
@@ -386,8 +413,7 @@ def log_template_analysis(logs: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFram
     drain_comparison = pd.DataFrame(comparison_rows)
     drain_comparison.to_csv(OUT / "drain_comparison.csv", index=False)
 
-    logs = logs.copy()
-    logs["template"] = logs["message"].map(lambda m: preprocess_template(m, SELECTED_DRAIN["drain_sim_th"]))
+    logs = assign_drain3_templates(logs, new_drain3_miner())
     grouped = (
         logs.groupby(["service", "level", "template"])
         .agg(
@@ -588,7 +614,7 @@ robust 3-alpha: median + 3 * 1.4826 * MAD
 
 ## Log Calibration
 
-Selected Drain-style config: `sim_th={SELECTED_DRAIN['drain_sim_th']}`, `depth={SELECTED_DRAIN['drain_depth']}`, `max_children={SELECTED_DRAIN['drain_max_children']}`, `parametrize_numeric_tokens=True`.
+Selected Drain3 config: `sim_th={SELECTED_DRAIN['drain_sim_th']}`, `depth={SELECTED_DRAIN['drain_depth']}`, `max_children={SELECTED_DRAIN['drain_max_children']}`, `parametrize_numeric_tokens=True`.
 
 Reason: the calibration table shows low similarity settings coarsen related failures, while `sim_th=0.6` keeps GC warning, cache eviction failure, OOMKilled, cart timeout, and cart 5xx patterns distinct.
 
@@ -608,7 +634,7 @@ Our analysis treated the incident as an evidence-ordering problem instead of sta
 
 - Member 1: metrics validation and robust MAD anomaly analysis.
 - Member 2: IsolationForest and EWMA comparison.
-- Member 3: log preprocessing and Drain-style template calibration.
+- Member 3: log preprocessing and Drain3 template calibration.
 - Member 4: incident timeline and root-cause synthesis.
 - Member 5: dashboard, charts, and report packaging.
 """
@@ -655,6 +681,53 @@ Key outputs:
 - `outputs/dashboard.html`
 - `FINDINGS.md`
 - `SUBMIT.md`
+
+Final presentation deliverables:
+
+- `outputs/presentations/shopx-aiops-final-rca-html.pptx`
+- `outputs/presentations/shopx-aiops-final-html.html`
+- `FINAL_PRESENTATION_SCRIPT.md`
+- `FINAL_QNA.md`
+
+The presentation is generated from HTML/CSS and notebook/chart assets:
+
+```bash
+python tools/build_html_powerpoint.py
+```
+
+This generator uses `diagrams`, `playwright`, `python-pptx`, and a local Graphviz
+installation for the pipeline diagram.
+
+Real-time simulated replay is split into a data pipeline and a frontend dashboard. Start the dashboard server, then click **Run Real-Time Workflow** in the page:
+
+```bash
+python w1/lab/realtime_dashboard.py
+```
+
+Dashboard URL:
+
+```text
+http://127.0.0.1:8765
+```
+
+The dashboard button triggers the full local workflow: stream/replay data -> calculate detector signals -> detect anomalies -> RCA.
+
+`realtime.py` is the stream/data pipeline script behind that button. It can also be run directly:
+
+```bash
+python w1/lab/realtime.py
+```
+
+It writes data artifacts only:
+
+- `outputs/realtime/events.jsonl`
+- `outputs/realtime/alerts.jsonl`
+- `outputs/realtime/rca_timeline.json`
+- `outputs/realtime/rca_hypotheses.json`
+
+`realtime_dashboard.py` serves the frontend, exposes the local `/api/run` trigger, reads those artifacts, and writes a static snapshot for review:
+
+- `outputs/realtime/dashboard.html`
 """
     (ROOT / "README.md").write_text(readme, encoding="utf-8")
 
@@ -771,7 +844,7 @@ code {{ background: #eef2f7; padding: 1px 4px; border-radius: 4px; }}
 {methods_html}
 </section>
 <section>
-<h2>Hiệu Chỉnh Drain3-Style</h2>
+<h2>Hiệu Chỉnh Drain3</h2>
 <p>Config được chọn: <code>{html.escape(json.dumps(SELECTED_DRAIN))}</code>.</p>
 <p>Bước calibration kiểm tra xem các message quan trọng có còn tách biệt sau khi mask ID và số hay không. Setting được chọn giữ riêng template cho GC warning, cache eviction failure, OOMKilled, cart timeout, và cart 5xx. Việc này quan trọng vì over-merge sẽ che mất khác biệt giữa bằng chứng nguyên nhân gốc và triệu chứng downstream.</p>
 <div class="callout warning"><strong>Lập luận:</strong> nếu cart timeout và cart 5xx bị gộp thành một template upstream failure chung chung, log analysis sẽ kém hữu ích cho RCA. Giữ chúng riêng giúp thứ tự incident rõ hơn.</div>
@@ -967,7 +1040,7 @@ code {{ background: #eef2f7; padding: 1px 4px; border-radius: 4px; }}
 <p><strong>Vì sao dùng 1.4826:</strong> với dữ liệu gần normal, <code>MAD ≈ 0.6745 * std</code>, nên <code>1.4826 * MAD</code> đưa MAD về thang đo tương đương standard deviation. Cách này giảm ảnh hưởng spike trong baseline so với mean/std.</p>
 <p><strong>EWMA:</strong> dùng để đọc xu hướng trên chart, không phải nhãn RCA chính.</p>
 <p><strong>IsolationForest:</strong> dùng như xác nhận multivariate vì score khó giải thích hơn threshold theo từng metric.</p>
-<p><strong>Drain3-style calibration:</strong> chọn config <code>{html.escape(json.dumps(SELECTED_DRAIN))}</code> vì vẫn tách riêng GC warning, cache eviction failure, OOMKilled, cart timeout, và cart 5xx.</p>
+<p><strong>Drain3 calibration:</strong> chọn config <code>{html.escape(json.dumps(SELECTED_DRAIN))}</code> vì vẫn tách riêng GC warning, cache eviction failure, OOMKilled, cart timeout, và cart 5xx.</p>
 </div>
 <h3>Observability của detector: threshold -> result -> interpretation</h3>
 <p>Bảng này giúp audit quyết định của từng detector. Với MAD, giá trị raw phải vượt ngưỡng robust 3-sigma. Với EWMA, đường trend đã làm mượt phải vượt ngưỡng decision threshold. Cả hai đều cần điều kiện persistence {PERSISTENCE_HITS}-of-{PERSISTENCE_WINDOW}, nên một spike đơn lẻ không đủ để thành anomaly.</p>

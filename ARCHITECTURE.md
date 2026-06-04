@@ -52,7 +52,7 @@ flowchart TD
     B --> C3[Kafka topic: traces]
 
     C1 --> D1[Stream Processing<br/>feature extraction]
-    C2 --> D2[Log Processing<br/>Drain-style template mining]
+    C2 --> D2[Log Processing<br/>Drain3 template mining]
     C3 --> D3[Trace Processing<br/>sampled path + latency]
 
     D1 --> E1[Metric Store<br/>VictoriaMetrics]
@@ -86,7 +86,7 @@ flowchart TD
 | Collection | OTel Collector as gateway/daemonset | Central place to batch, enrich, filter, and route telemetry | Extra component to operate |
 | Transport | Kafka | Decouples producers/consumers, supports replay, handles backpressure, allows multiple consumers | Adds latency and operational complexity |
 | Metric processing | Flink for production, pandas batch for current lab | Flink supports stateful rolling windows at scale; current lab can simulate offline | Flink is heavier than needed for small/offline data |
-| Log processing | Drain-style template parser | Groups dynamic raw logs into stable templates for RCA | Current implementation is lightweight, not full Drain3 |
+| Log processing | Drain3 template parser | Groups dynamic raw logs into stable templates for RCA | Uses the actual `drain3` package with explicit masking instructions |
 | Metric storage | VictoriaMetrics / Prometheus-compatible TSDB | Fast time-series query, lower cost than storing metrics in search DB | Less useful for raw event context |
 | Log storage | Loki or ClickHouse | Loki is cheaper for label-first log search; ClickHouse is strong for aggregation | Elasticsearch gives richer full-text search but costs more |
 | Trace storage | Jaeger with sampling | Useful for request path and bottleneck drilldown | Sampling can miss rare anomalies |
@@ -193,7 +193,7 @@ Current detector choices:
 - Robust MAD 3-sigma: primary, explainable, robust to skew.
 - EWMA: trend support.
 - IsolationForest: multivariate confirmation.
-- Drain-style log templates: RCA explanation and log pattern count.
+- Drain3 log templates: RCA explanation and log pattern count.
 
 ## Mapping to Current Repo
 
@@ -216,6 +216,11 @@ Important files:
 - `outputs/log_templates.csv`: log template results.
 - `outputs/incident_timeline.csv`: evidence ordering.
 - `outputs/dashboard.html`: final postmortem dashboard.
+- `outputs/realtime/events.jsonl`: simulated stream events from metrics and Drain3 log templates.
+- `outputs/realtime/alerts.jsonl`: metric and log-template alerts emitted by the realtime replay.
+- `outputs/realtime/rca_timeline.json`: rule-based RCA evidence chain.
+- `outputs/realtime/rca_hypotheses.json`: ranked deterministic RCA hypotheses.
+- `outputs/realtime/dashboard.html`: frontend dashboard built separately from the realtime data pipeline.
 
 ## Architecture Decisions
 
@@ -253,7 +258,7 @@ Consequence:
 - Multiple consumers can read the same telemetry stream.
 - Operational complexity increases.
 
-### Decision 3: Use Drain-style parser in current lab
+### Decision 3: Use Drain3 parser in current lab
 
 Context:
 
@@ -262,13 +267,13 @@ Context:
 
 Decision:
 
-- Implement a lightweight Drain-style parser instead of requiring the full `drain3` package.
+- Use the actual `drain3` package with configured similarity, tree depth, max children, numeric parameterization, and custom masks.
 
 Consequence:
 
 - No external dependency.
-- Key template mining behavior is preserved.
-- We should call it "Drain-style", not "Drain3", unless we replace it with the actual library.
+- Key template mining behavior is preserved for GC warning, cache eviction failure, OOMKilled, cart timeout, and cart 5xx.
+- Because the pipeline now uses the actual library, docs and dashboards call this component Drain3.
 
 ## Cost and Scale Considerations
 

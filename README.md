@@ -39,3 +39,50 @@ Key outputs:
 - `outputs/dashboard.html`
 - `FINDINGS.md`
 - `SUBMIT.md`
+
+Final presentation deliverables:
+
+- `outputs/presentations/shopx-aiops-final-rca-html.pptx`
+- `outputs/presentations/shopx-aiops-final-html.html`
+- `FINAL_PRESENTATION_SCRIPT.md`
+- `FINAL_QNA.md`
+
+The presentation is generated from HTML/CSS and notebook/chart assets:
+
+```bash
+python tools/build_html_powerpoint.py
+```
+
+This generator uses `diagrams`, `playwright`, `python-pptx`, and a local Graphviz
+installation for the pipeline diagram.
+
+Real-time simulated replay is split into a data pipeline and a frontend dashboard. Start the dashboard server, then click **Run Real-Time Workflow** in the page:
+
+```bash
+python w1/lab/realtime_dashboard.py
+```
+
+Dashboard URL:
+
+```text
+http://127.0.0.1:8765
+```
+
+The dashboard button triggers the full local workflow: stream/replay data -> calculate detector signals -> detect anomalies -> RCA.
+
+`realtime.py` is the stream/data pipeline script behind that button. It can also be run directly:
+
+```bash
+python w1/lab/realtime.py
+```
+
+It writes data artifacts only:
+
+- `outputs/realtime/events.jsonl`
+- `outputs/realtime/alerts.jsonl`
+- `outputs/realtime/rca_timeline.json`
+- `outputs/realtime/rca_hypotheses.json`
+
+`realtime_dashboard.py` serves the frontend, exposes the local `/api/run` trigger, reads those artifacts, and writes a static snapshot for review:
+
+- `outputs/realtime/dashboard.html`

@@ -7,3 +7,7 @@ venv/
 Thumbs.db
 EDA.ipynb
 assignment.html
+outputs/realtime/*.log
+outputs/presentations/html-slide-renders/
+outputs/presentations/notebook-assets/
+outputs/presentations/html-contact-sheet.png

@@ -56,7 +56,7 @@ flowchart TD
     G --> I[WHEN<br/>first abnormal timestamp]
 
     I --> J[Incident Time Window]
-    D --> K[Drain-style Log Template Parser]
+    D --> K[Drain3 Log Template Parser]
     K --> L[Template Counts<br/>5-min buckets]
     J --> L
 

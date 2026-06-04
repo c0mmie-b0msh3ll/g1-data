@@ -41,23 +41,23 @@ robust 3-alpha: median + 3 * 1.4826 * MAD
 
 ## Log Calibration
 
-Selected Drain-style config: `sim_th=0.6`, `depth=4`, `max_children=100`, `parametrize_numeric_tokens=True`.
+Selected Drain3 config: `sim_th=0.6`, `depth=4`, `max_children=100`, `parametrize_numeric_tokens=True`.
 
 Reason: the calibration table shows low similarity settings coarsen related failures, while `sim_th=0.6` keeps GC warning, cache eviction failure, OOMKilled, cart timeout, and cart 5xx patterns distinct.
 
 ## Key Template Evidence
 
-| template_id   | service       | level   |   count | first_seen                       | template                                                      |
-|:--------------|:--------------|:--------|--------:|:---------------------------------|:--------------------------------------------------------------|
-| T001          | cart-service  | INFO    |    3186 | 2026-06-01T00:00:19.437000+00:00 | Health check passed                                           |
-| T002          | cart-service  | INFO    |    3158 | 2026-06-01T00:00:18.233000+00:00 | Item added to cart for userId=<NUM>                           |
-| T003          | cart-service  | INFO    |    2822 | 2026-06-01T00:00:19.656000+00:00 | DB query executed table=cart rows=<NUM>                       |
-| T004          | cart-service  | WARN    |    2671 | 2026-06-01T06:33:57.795000+00:00 | ProductCatalogCache eviction failed: heap pressure too high   |
-| T005          | order-service | INFO    |    2391 | 2026-06-01T00:00:01.817000+00:00 | Cart service call succeeded                                   |
-| T006          | order-service | INFO    |    2238 | 2026-06-01T00:00:16.169000+00:00 | Order created orderId=ORD-<NUM> userId=<NUM>                  |
-| T007          | cart-service  | WARN    |    2084 | 2026-06-01T06:30:32.992000+00:00 | GC overhead limit warning: pause=<NUM>ms heap=<NUM>%          |
-| T008          | cart-service  | INFO    |    2041 | 2026-06-01T00:02:10.733000+00:00 | Checkout completed orderId=ORD-<NUM>                          |
-| T009          | cart-service  | INFO    |    1871 | 2026-06-01T00:02:10.942000+00:00 | ProductCatalogCache loaded <NUM> entries                      |
-| T010          | order-service | INFO    |    1845 | 2026-06-01T00:00:39.809000+00:00 | Health check passed                                           |
-| T011          | cart-service  | WARN    |    1104 | 2026-06-01T00:04:45.868000+00:00 | Connection pool nearing limit pool=db connections=<NUM>/<NUM> |
-| T012          | order-service | WARN    |    1080 | 2026-06-01T00:00:14.987000+00:00 | Cart service timeout after <NUM>ms                            |
+| template_id   | service       | level   |   count | first_seen                       | template                                                    |
+|:--------------|:--------------|:--------|--------:|:---------------------------------|:------------------------------------------------------------|
+| T001          | cart-service  | INFO    |    3186 | 2026-06-01T00:00:19.437000+00:00 | Health check passed                                         |
+| T002          | cart-service  | INFO    |    3158 | 2026-06-01T00:00:18.233000+00:00 | Item added to cart for userId=<NUM>                         |
+| T003          | cart-service  | INFO    |    2822 | 2026-06-01T00:00:19.656000+00:00 | DB query executed table=cart <*>                            |
+| T004          | cart-service  | WARN    |    2671 | 2026-06-01T06:33:57.795000+00:00 | ProductCatalogCache eviction failed: heap pressure too high |
+| T005          | order-service | INFO    |    2391 | 2026-06-01T00:00:01.817000+00:00 | Cart service call succeeded                                 |
+| T006          | order-service | INFO    |    2238 | 2026-06-01T00:00:16.169000+00:00 | Order created orderId=<ORDER_ID> userId=<NUM>               |
+| T007          | cart-service  | WARN    |    2084 | 2026-06-01T06:30:32.992000+00:00 | GC overhead limit warning: pause=<NUM>ms heap=<NUM>%        |
+| T008          | cart-service  | INFO    |    2041 | 2026-06-01T00:02:10.733000+00:00 | Checkout completed orderId=<ORDER_ID>                       |
+| T009          | cart-service  | INFO    |    1871 | 2026-06-01T00:02:10.942000+00:00 | ProductCatalogCache loaded <*> entries                      |
+| T010          | order-service | INFO    |    1845 | 2026-06-01T00:00:39.809000+00:00 | Health check passed                                         |
+| T011          | cart-service  | WARN    |    1552 | 2026-06-01T06:34:56.284000+00:00 | Slow response detected endpoint=/api/cart <*>               |
+| T012          | cart-service  | WARN    |    1104 | 2026-06-01T00:04:45.868000+00:00 | Connection pool nearing limit pool=db <*>                   |

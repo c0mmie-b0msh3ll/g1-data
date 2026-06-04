@@ -1,0 +1,56 @@
+[
+  {
+    "timestamp": "2026-06-01T06:30:32.992000+00:00",
+    "stage": "GC/cache pressure",
+    "service": "cart-service",
+    "evidence": "GC overhead warning appears"
+  },
+  {
+    "timestamp": "2026-06-01T06:33:57.795000+00:00",
+    "stage": "GC/cache pressure",
+    "service": "cart-service",
+    "evidence": "ProductCatalogCache eviction failed under heap pressure"
+  },
+  {
+    "timestamp": "2026-06-01T19:59:31.047000+00:00",
+    "stage": "OOMKilled",
+    "service": "cart-service",
+    "evidence": "Container OOMKilled: memory limit exceeded"
+  },
+  {
+    "timestamp": "2026-06-01T20:00:00+00:00",
+    "stage": "restart loop",
+    "service": "cart-service",
+    "evidence": "container_restart_count anomaly/restart signal follows OOMKilled"
+  },
+  {
+    "timestamp": "2026-06-01T20:00:58.858000+00:00",
+    "stage": "downstream symptom",
+    "service": "order-service",
+    "evidence": "Cart service timeout after cart OOM/restart"
+  },
+  {
+    "timestamp": "2026-06-01T20:08:00+00:00",
+    "stage": "downstream symptom",
+    "service": "api-gateway",
+    "evidence": "cart_upstream_error_rate anomaly after cart degradation"
+  },
+  {
+    "timestamp": "2026-06-01T20:30:03.634000+00:00",
+    "stage": "downstream symptom",
+    "service": "order-service",
+    "evidence": "Cart service returned 5xx after cart OOM/restart"
+  },
+  {
+    "timestamp": "2026-06-01T20:30:30+00:00",
+    "stage": "downstream symptom",
+    "service": "order-service",
+    "evidence": "upstream timeout/5xx metric anomaly"
+  },
+  {
+    "timestamp": "2026-06-01T20:45:00+00:00",
+    "stage": "downstream symptom",
+    "service": "payment-service",
+    "evidence": "payment timeout metric anomaly later in checkout flow"
+  }
+]

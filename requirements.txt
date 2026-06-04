@@ -1,0 +1,8 @@
+drain3
+pandas
+numpy
+matplotlib
+scikit-learn
+diagrams
+playwright
+python-pptx

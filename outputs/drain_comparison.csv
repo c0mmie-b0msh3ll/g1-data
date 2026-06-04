@@ -1,7 +1,7 @@
 sim_th,depth,max_children,parametrize_numeric_tokens,template_count,key_patterns_preserved,selected,notes
-0.4,4,100,True,1319,True,False,GC overhead=1; ProductCatalogCache eviction failed=1; OOMKilled=1; Cart service timeout=1; Cart service returned 5xx=1
-0.4,5,100,True,1319,True,False,GC overhead=1; ProductCatalogCache eviction failed=1; OOMKilled=1; Cart service timeout=1; Cart service returned 5xx=1
-0.5,4,100,True,1321,True,False,GC overhead=1; ProductCatalogCache eviction failed=1; OOMKilled=1; Cart service timeout=1; Cart service returned 5xx=1
-0.5,5,100,True,1321,True,False,GC overhead=1; ProductCatalogCache eviction failed=1; OOMKilled=1; Cart service timeout=1; Cart service returned 5xx=1
-0.6,4,100,True,1321,True,True,GC overhead=1; ProductCatalogCache eviction failed=1; OOMKilled=1; Cart service timeout=1; Cart service returned 5xx=1
-0.6,5,100,True,1321,True,False,GC overhead=1; ProductCatalogCache eviction failed=1; OOMKilled=1; Cart service timeout=1; Cart service returned 5xx=1
+0.4,4,100,True,18,True,False,GC overhead=1; ProductCatalogCache eviction failed=1; OOMKilled=1; Cart service timeout=1; Cart service returned 5xx=1
+0.4,5,100,True,18,True,False,GC overhead=1; ProductCatalogCache eviction failed=1; OOMKilled=1; Cart service timeout=1; Cart service returned 5xx=1
+0.5,4,100,True,19,True,False,GC overhead=1; ProductCatalogCache eviction failed=1; OOMKilled=1; Cart service timeout=1; Cart service returned 5xx=1
+0.5,5,100,True,19,True,False,GC overhead=1; ProductCatalogCache eviction failed=1; OOMKilled=1; Cart service timeout=1; Cart service returned 5xx=1
+0.6,4,100,True,19,True,True,GC overhead=1; ProductCatalogCache eviction failed=1; OOMKilled=1; Cart service timeout=1; Cart service returned 5xx=1
+0.6,5,100,True,19,True,False,GC overhead=1; ProductCatalogCache eviction failed=1; OOMKilled=1; Cart service timeout=1; Cart service returned 5xx=1

@@ -1,0 +1,1053 @@
+{
+  "baseline_hours": 6,
+  "baseline_start": "2026-06-01T00:00:00+00:00",
+  "baseline_end": "2026-06-01T06:00:00+00:00",
+  "services": [
+    "api-gateway",
+    "cart-service",
+    "order-service",
+    "payment-service",
+    "product-service"
+  ],
+  "metrics": [
+    "active_connections",
+    "cart_upstream_error_rate",
+    "container_restart_count",
+    "cpu_usage_percent",
+    "http_5xx_rate",
+    "http_p99_latency_ms",
+    "http_requests_per_sec",
+    "jvm_gc_pause_ms_avg",
+    "memory_limit_bytes",
+    "memory_usage_bytes",
+    "product_upstream_error_rate",
+    "upstream_timeout_rate"
+  ],
+  "metric_baselines": [
+    {
+      "service": "api-gateway",
+      "metric": "http_requests_per_sec",
+      "baseline_rows": 720,
+      "median": 54.620000000000005,
+      "sigma": 8.539776000000002,
+      "mad_threshold": 80.239328,
+      "min": 27.71,
+      "p95": 69.70349999999999,
+      "max": 78.59
+    },
+    {
+      "service": "api-gateway",
+      "metric": "http_p99_latency_ms",
+      "baseline_rows": 720,
+      "median": 20.2,
+      "sigma": 14.974260000000001,
+      "mad_threshold": 65.12278,
+      "min": 10.0,
+      "p95": 44.1,
+      "max": 59.6
+    },
+    {
+      "service": "api-gateway",
+      "metric": "http_5xx_rate",
+      "baseline_rows": 720,
+      "median": 0.0,
+      "sigma": 0.0,
+      "mad_threshold": 0.0,
+      "min": 0.0,
+      "p95": 1.5,
+      "max": 1.5
+    },
+    {
+      "service": "api-gateway",
+      "metric": "cart_upstream_error_rate",
+      "baseline_rows": 720,
+      "median": 0.38,
+      "sigma": 0.2965199999999999,
+      "mad_threshold": 1.2695599999999998,
+      "min": 0.0,
+      "p95": 0.76,
+      "max": 0.8
+    },
+    {
+      "service": "api-gateway",
+      "metric": "product_upstream_error_rate",
+      "baseline_rows": 720,
+      "median": 0.2,
+      "sigma": 0.14826,
+      "mad_threshold": 0.64478,
+      "min": 0.0,
+      "p95": 6.2604999999999995,
+      "max": 9.7
+    },
+    {
+      "service": "api-gateway",
+      "metric": "active_connections",
+      "baseline_rows": 720,
+      "median": 336.0,
+      "sigma": 19.273799999999998,
+      "mad_threshold": 393.8214,
+      "min": 279.0,
+      "p95": 369.0,
+      "max": 408.0
+    },
+    {
+      "service": "cart-service",
+      "metric": "memory_usage_bytes",
+      "baseline_rows": 720,
+      "median": 418523156.5,
+      "sigma": 63488833.461899996,
+      "mad_threshold": 608989656.8857,
+      "min": 293601280.0,
+      "p95": 506598216.65,
+      "max": 575772487.0
+    },
+    {
+      "service": "cart-service",
+      "metric": "memory_limit_bytes",
+      "baseline_rows": 720,
+      "median": 2147483648.0,
+      "sigma": 0.0,
+      "mad_threshold": 2147483648.0,
+      "min": 2147483648.0,
+      "p95": 2147483648.0,
+      "max": 2147483648.0
+    },
+    {
+      "service": "cart-service",
+      "metric": "cpu_usage_percent",
+      "baseline_rows": 720,
+      "median": 20.345,
+      "sigma": 7.805888999999998,
+      "mad_threshold": 43.76266699999999,
+      "min": 2.0,
+      "p95": 33.824499999999986,
+      "max": 48.45
+    },
+    {
+      "service": "cart-service",
+      "metric": "http_requests_per_sec",
+      "baseline_rows": 720,
+      "median": 34.215,
+      "sigma": 5.9081610000000016,
+      "mad_threshold": 51.93948300000001,
+      "min": 15.91,
+      "p95": 44.28699999999999,
+      "max": 52.91
+    },
+    {
+      "service": "cart-service",
+      "metric": "http_p99_latency_ms",
+      "baseline_rows": 720,
+      "median": 50.1,
+      "sigma": 24.24051,
+      "mad_threshold": 122.82153,
+      "min": 30.0,
+      "p95": 91.21999999999998,
+      "max": 125.2
+    },
+    {
+      "service": "cart-service",
+      "metric": "http_5xx_rate",
+      "baseline_rows": 720,
+      "median": 0.065,
+      "sigma": 0.096369,
+      "mad_threshold": 0.354107,
+      "min": 0.0,
+      "p95": 2.0,
+      "max": 2.0
+    },
+    {
+      "service": "cart-service",
+      "metric": "jvm_gc_pause_ms_avg",
+      "baseline_rows": 720,
+      "median": 45.4,
+      "sigma": 19.644449999999992,
+      "mad_threshold": 104.33334999999997,
+      "min": 1.0,
+      "p95": 77.60499999999999,
+      "max": 97.0
+    },
+    {
+      "service": "cart-service",
+      "metric": "container_restart_count",
+      "baseline_rows": 720,
+      "median": 0.0,
+      "sigma": 0.0,
+      "mad_threshold": 0.0,
+      "min": 0.0,
+      "p95": 0.0,
+      "max": 0.0
+    },
+    {
+      "service": "order-service",
+      "metric": "http_requests_per_sec",
+      "baseline_rows": 720,
+      "median": 20.605,
+      "sigma": 4.306952999999999,
+      "mad_threshold": 33.525859,
+      "min": 8.49,
+      "p95": 27.522,
+      "max": 34.9
+    },
+    {
+      "service": "order-service",
+      "metric": "http_p99_latency_ms",
+      "baseline_rows": 720,
+      "median": 39.6,
+      "sigma": 19.57031999999999,
+      "mad_threshold": 98.31095999999997,
+      "min": 20.0,
+      "p95": 72.1,
+      "max": 107.5
+    },
+    {
+      "service": "order-service",
+      "metric": "http_5xx_rate",
+      "baseline_rows": 720,
+      "median": 0.42,
+      "sigma": 0.28169399999999994,
+      "mad_threshold": 1.2650819999999998,
+      "min": 0.0,
+      "p95": 0.76,
+      "max": 0.8
+    },
+    {
+      "service": "order-service",
+      "metric": "upstream_timeout_rate",
+      "baseline_rows": 720,
+      "median": 0.49,
+      "sigma": 0.37065,
+      "mad_threshold": 1.60195,
+      "min": 0.0,
+      "p95": 0.95,
+      "max": 1.0
+    },
+    {
+      "service": "payment-service",
+      "metric": "http_requests_per_sec",
+      "baseline_rows": 720,
+      "median": 13.65,
+      "sigma": 2.4388769999999993,
+      "mad_threshold": 20.966631,
+      "min": 6.91,
+      "p95": 17.464999999999996,
+      "max": 22.02
+    },
+    {
+      "service": "payment-service",
+      "metric": "http_p99_latency_ms",
+      "baseline_rows": 720,
+      "median": 59.25,
+      "sigma": 21.27531,
+      "mad_threshold": 123.07593,
+      "min": 40.0,
+      "p95": 93.405,
+      "max": 112.1
+    },
+    {
+      "service": "payment-service",
+      "metric": "http_5xx_rate",
+      "baseline_rows": 720,
+      "median": 0.19,
+      "sigma": 0.14826,
+      "mad_threshold": 0.63478,
+      "min": 0.0,
+      "p95": 0.37049999999999955,
+      "max": 0.4
+    },
+    {
+      "service": "payment-service",
+      "metric": "upstream_timeout_rate",
+      "baseline_rows": 720,
+      "median": 0.25,
+      "sigma": 0.192738,
+      "mad_threshold": 0.828214,
+      "min": 0.0,
+      "p95": 0.48,
+      "max": 0.5
+    },
+    {
+      "service": "product-service",
+      "metric": "http_requests_per_sec",
+      "baseline_rows": 720,
+      "median": 27.37,
+      "sigma": 4.744319999999998,
+      "mad_threshold": 41.602959999999996,
+      "min": 13.32,
+      "p95": 35.80199999999999,
+      "max": 42.15
+    },
+    {
+      "service": "product-service",
+      "metric": "http_p99_latency_ms",
+      "baseline_rows": 720,
+      "median": 44.4,
+      "sigma": 28.1694,
+      "mad_threshold": 128.9082,
+      "min": 20.0,
+      "p95": 827.9299999999998,
+      "max": 1148.4
+    },
+    {
+      "service": "product-service",
+      "metric": "cpu_usage_percent",
+      "baseline_rows": 720,
+      "median": 20.924999999999997,
+      "sigma": 9.785159999999996,
+      "mad_threshold": 50.28047999999998,
+      "min": 2.0,
+      "p95": 65.35199999999999,
+      "max": 87.62
+    },
+    {
+      "service": "product-service",
+      "metric": "http_5xx_rate",
+      "baseline_rows": 720,
+      "median": 0.455,
+      "sigma": 0.6745829999999999,
+      "mad_threshold": 2.4787489999999996,
+      "min": 0.0,
+      "p95": 8.503499999999997,
+      "max": 12.48
+    }
+  ],
+  "log_templates": [
+    {
+      "service": "cart-service",
+      "template": "Health check passed",
+      "baseline_count": 874
+    },
+    {
+      "service": "cart-service",
+      "template": "Item added to cart for userId=<NUM>",
+      "baseline_count": 856
+    },
+    {
+      "service": "cart-service",
+      "template": "DB query executed table=cart <*>",
+      "baseline_count": 780
+    },
+    {
+      "service": "cart-service",
+      "template": "Checkout completed orderId=<ORDER_ID>",
+      "baseline_count": 553
+    },
+    {
+      "service": "cart-service",
+      "template": "ProductCatalogCache loaded <*> entries",
+      "baseline_count": 540
+    },
+    {
+      "service": "cart-service",
+      "template": "Connection pool nearing limit pool=db <*>",
+      "baseline_count": 117
+    },
+    {
+      "service": "cart-service",
+      "template": "Cache warm-up slower than expected startup_ms=<NUM>",
+      "baseline_count": 113
+    },
+    {
+      "service": "cart-service",
+      "template": "Health check response time elevated endpoint=/health <*>",
+      "baseline_count": 93
+    },
+    {
+      "service": "order-service",
+      "template": "Cart service call succeeded",
+      "baseline_count": 642
+    },
+    {
+      "service": "order-service",
+      "template": "Order created orderId=<ORDER_ID> userId=<NUM>",
+      "baseline_count": 533
+    },
+    {
+      "service": "order-service",
+      "template": "Health check passed",
+      "baseline_count": 480
+    },
+    {
+      "service": "order-service",
+      "template": "Cart service timeout after <NUM>ms",
+      "baseline_count": 107
+    }
+  ],
+  "warn_error_windows": [
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T00:00:00+00:00",
+      "warn_error_count": 5
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T00:05:00+00:00",
+      "warn_error_count": 3
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T00:10:00+00:00",
+      "warn_error_count": 5
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T00:15:00+00:00",
+      "warn_error_count": 3
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T00:20:00+00:00",
+      "warn_error_count": 7
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T00:25:00+00:00",
+      "warn_error_count": 6
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T00:30:00+00:00",
+      "warn_error_count": 3
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T00:35:00+00:00",
+      "warn_error_count": 4
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T00:40:00+00:00",
+      "warn_error_count": 7
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T00:45:00+00:00",
+      "warn_error_count": 6
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T00:50:00+00:00",
+      "warn_error_count": 2
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T00:55:00+00:00",
+      "warn_error_count": 7
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T01:00:00+00:00",
+      "warn_error_count": 7
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T01:05:00+00:00",
+      "warn_error_count": 3
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T01:15:00+00:00",
+      "warn_error_count": 5
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T01:20:00+00:00",
+      "warn_error_count": 2
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T01:25:00+00:00",
+      "warn_error_count": 3
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T01:30:00+00:00",
+      "warn_error_count": 5
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T01:35:00+00:00",
+      "warn_error_count": 5
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T01:40:00+00:00",
+      "warn_error_count": 6
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T01:45:00+00:00",
+      "warn_error_count": 6
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T01:50:00+00:00",
+      "warn_error_count": 3
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T01:55:00+00:00",
+      "warn_error_count": 2
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T02:00:00+00:00",
+      "warn_error_count": 6
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T02:05:00+00:00",
+      "warn_error_count": 3
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T02:10:00+00:00",
+      "warn_error_count": 5
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T02:15:00+00:00",
+      "warn_error_count": 4
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T02:20:00+00:00",
+      "warn_error_count": 2
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T02:25:00+00:00",
+      "warn_error_count": 9
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T02:30:00+00:00",
+      "warn_error_count": 6
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T02:35:00+00:00",
+      "warn_error_count": 5
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T02:40:00+00:00",
+      "warn_error_count": 8
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T02:45:00+00:00",
+      "warn_error_count": 4
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T02:50:00+00:00",
+      "warn_error_count": 5
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T02:55:00+00:00",
+      "warn_error_count": 4
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T03:00:00+00:00",
+      "warn_error_count": 3
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T03:05:00+00:00",
+      "warn_error_count": 5
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T03:10:00+00:00",
+      "warn_error_count": 6
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T03:15:00+00:00",
+      "warn_error_count": 1
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T03:20:00+00:00",
+      "warn_error_count": 5
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T03:25:00+00:00",
+      "warn_error_count": 7
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T03:30:00+00:00",
+      "warn_error_count": 6
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T03:35:00+00:00",
+      "warn_error_count": 10
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T03:40:00+00:00",
+      "warn_error_count": 4
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T03:45:00+00:00",
+      "warn_error_count": 3
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T03:50:00+00:00",
+      "warn_error_count": 6
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T03:55:00+00:00",
+      "warn_error_count": 4
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T04:00:00+00:00",
+      "warn_error_count": 3
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T04:05:00+00:00",
+      "warn_error_count": 3
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T04:10:00+00:00",
+      "warn_error_count": 4
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T04:15:00+00:00",
+      "warn_error_count": 3
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T04:20:00+00:00",
+      "warn_error_count": 7
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T04:25:00+00:00",
+      "warn_error_count": 3
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T04:30:00+00:00",
+      "warn_error_count": 4
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T04:35:00+00:00",
+      "warn_error_count": 5
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T04:40:00+00:00",
+      "warn_error_count": 5
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T04:45:00+00:00",
+      "warn_error_count": 7
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T04:50:00+00:00",
+      "warn_error_count": 3
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T04:55:00+00:00",
+      "warn_error_count": 2
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T05:00:00+00:00",
+      "warn_error_count": 6
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T05:05:00+00:00",
+      "warn_error_count": 3
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T05:10:00+00:00",
+      "warn_error_count": 5
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T05:15:00+00:00",
+      "warn_error_count": 4
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T05:20:00+00:00",
+      "warn_error_count": 5
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T05:25:00+00:00",
+      "warn_error_count": 1
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T05:30:00+00:00",
+      "warn_error_count": 8
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T05:35:00+00:00",
+      "warn_error_count": 2
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T05:40:00+00:00",
+      "warn_error_count": 6
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T05:45:00+00:00",
+      "warn_error_count": 4
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T05:50:00+00:00",
+      "warn_error_count": 3
+    },
+    {
+      "service": "cart-service",
+      "timestamp": "2026-06-01T05:55:00+00:00",
+      "warn_error_count": 1
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T00:00:00+00:00",
+      "warn_error_count": 2
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T00:05:00+00:00",
+      "warn_error_count": 3
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T00:10:00+00:00",
+      "warn_error_count": 1
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T00:15:00+00:00",
+      "warn_error_count": 1
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T00:20:00+00:00",
+      "warn_error_count": 2
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T00:25:00+00:00",
+      "warn_error_count": 1
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T00:40:00+00:00",
+      "warn_error_count": 1
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T00:45:00+00:00",
+      "warn_error_count": 2
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T00:50:00+00:00",
+      "warn_error_count": 2
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T00:55:00+00:00",
+      "warn_error_count": 3
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T01:00:00+00:00",
+      "warn_error_count": 2
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T01:05:00+00:00",
+      "warn_error_count": 2
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T01:10:00+00:00",
+      "warn_error_count": 3
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T01:15:00+00:00",
+      "warn_error_count": 1
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T01:20:00+00:00",
+      "warn_error_count": 1
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T01:25:00+00:00",
+      "warn_error_count": 2
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T01:30:00+00:00",
+      "warn_error_count": 1
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T01:35:00+00:00",
+      "warn_error_count": 2
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T01:45:00+00:00",
+      "warn_error_count": 3
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T01:50:00+00:00",
+      "warn_error_count": 1
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T01:55:00+00:00",
+      "warn_error_count": 3
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T02:05:00+00:00",
+      "warn_error_count": 1
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T02:10:00+00:00",
+      "warn_error_count": 1
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T02:20:00+00:00",
+      "warn_error_count": 1
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T02:25:00+00:00",
+      "warn_error_count": 5
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T02:35:00+00:00",
+      "warn_error_count": 3
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T02:45:00+00:00",
+      "warn_error_count": 2
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T02:50:00+00:00",
+      "warn_error_count": 1
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T02:55:00+00:00",
+      "warn_error_count": 4
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T03:00:00+00:00",
+      "warn_error_count": 1
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T03:05:00+00:00",
+      "warn_error_count": 3
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T03:10:00+00:00",
+      "warn_error_count": 2
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T03:20:00+00:00",
+      "warn_error_count": 1
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T03:40:00+00:00",
+      "warn_error_count": 1
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T03:45:00+00:00",
+      "warn_error_count": 2
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T03:55:00+00:00",
+      "warn_error_count": 1
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T04:00:00+00:00",
+      "warn_error_count": 1
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T04:05:00+00:00",
+      "warn_error_count": 4
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T04:10:00+00:00",
+      "warn_error_count": 1
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T04:15:00+00:00",
+      "warn_error_count": 2
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T04:20:00+00:00",
+      "warn_error_count": 2
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T04:30:00+00:00",
+      "warn_error_count": 1
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T04:35:00+00:00",
+      "warn_error_count": 2
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T04:40:00+00:00",
+      "warn_error_count": 4
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T05:00:00+00:00",
+      "warn_error_count": 1
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T05:05:00+00:00",
+      "warn_error_count": 2
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T05:10:00+00:00",
+      "warn_error_count": 4
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T05:15:00+00:00",
+      "warn_error_count": 2
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T05:20:00+00:00",
+      "warn_error_count": 4
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T05:30:00+00:00",
+      "warn_error_count": 2
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T05:35:00+00:00",
+      "warn_error_count": 3
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T05:45:00+00:00",
+      "warn_error_count": 1
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T05:50:00+00:00",
+      "warn_error_count": 1
+    },
+    {
+      "service": "order-service",
+      "timestamp": "2026-06-01T05:55:00+00:00",
+      "warn_error_count": 2
+    }
+  ],
+  "template_keys": [
+    {
+      "service": "cart-service",
+      "template": "Cache warm-up slower than expected startup_ms=<NUM>"
+    },
+    {
+      "service": "cart-service",
+      "template": "Checkout completed orderId=<ORDER_ID>"
+    },
+    {
+      "service": "cart-service",
+      "template": "Connection pool nearing limit pool=db <*>"
+    },
+    {
+      "service": "cart-service",
+      "template": "DB query executed table=cart <*>"
+    },
+    {
+      "service": "cart-service",
+      "template": "Health check passed"
+    },
+    {
+      "service": "cart-service",
+      "template": "Health check response time elevated endpoint=/health <*>"
+    },
+    {
+      "service": "cart-service",
+      "template": "Item added to cart for userId=<NUM>"
+    },
+    {
+      "service": "cart-service",
+      "template": "ProductCatalogCache loaded <*> entries"
+    },
+    {
+      "service": "order-service",
+      "template": "Cart service call succeeded"
+    },
+    {
+      "service": "order-service",
+      "template": "Cart service timeout after <NUM>ms"
+    },
+    {
+      "service": "order-service",
+      "template": "Health check passed"
+    },
+    {
+      "service": "order-service",
+      "template": "Order created orderId=<ORDER_ID> userId=<NUM>"
+    }
+  ]
+}

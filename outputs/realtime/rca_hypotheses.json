@@ -1,0 +1,38 @@
+[
+  {
+    "rank": 1,
+    "root_cause_service": "cart-service",
+    "root_cause": "cart-service memory pressure caused GC/cache degradation, OOMKilled, pod restarts, then downstream timeout/5xx propagation",
+    "confidence": "high",
+    "mechanism": "GC/cache -> OOMKilled -> restart -> downstream timeout/5xx",
+    "supporting_evidence": [
+      "GC overhead warning appears",
+      "ProductCatalogCache eviction failed under heap pressure",
+      "Container OOMKilled: memory limit exceeded",
+      "container_restart_count anomaly/restart signal follows OOMKilled",
+      "Cart service timeout after cart OOM/restart",
+      "cart_upstream_error_rate anomaly after cart degradation",
+      "Cart service returned 5xx after cart OOM/restart",
+      "upstream timeout/5xx metric anomaly",
+      "payment timeout metric anomaly later in checkout flow"
+    ],
+    "rule_trace": [
+      "cart memory/GC/cache anomalies before OOM/restart imply cart origin candidate",
+      "OOMKilled before restart implies restart loop mechanism",
+      "API gateway/order/payment anomalies after cart imply downstream symptoms"
+    ]
+  },
+  {
+    "rank": 2,
+    "root_cause_service": "product-service",
+    "root_cause": "product-service/catalog instability as contributing factor",
+    "confidence": "low",
+    "mechanism": "insufficient evidence for product-service as the first failing service",
+    "supporting_evidence": [
+      "cart-service has the stronger ordered memory -> OOMKilled -> restart chain"
+    ],
+    "rule_trace": [
+      "demote candidates that do not explain OOMKilled and restart ordering on cart-service"
+    ]
+  }
+]

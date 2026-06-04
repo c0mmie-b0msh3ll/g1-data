@@ -1,0 +1,101 @@
+{
+  "updated_at": "2026-06-04T16:18:32.365578+00:00",
+  "latest_error": null,
+  "stages": {
+    "stream": {
+      "label": "Stream Data",
+      "status": "complete",
+      "last_run": "2026-06-04T16:18:30.933680+00:00",
+      "summary": {
+        "mode": "preincident",
+        "stream_events": 9832,
+        "metric_rows": 3810,
+        "log_rows": 6022,
+        "services": [
+          "api-gateway",
+          "cart-service",
+          "order-service",
+          "payment-service",
+          "product-service"
+        ],
+        "start": "2026-06-01T00:00:00+00:00",
+        "end": "2026-06-01T06:20:30.896000+00:00",
+        "simulation_start": "2026-06-01T06:20:32.992000+00:00",
+        "incident_anchor": "2026-06-01T06:30:32.992000+00:00"
+      },
+      "started_at": "2026-06-04T16:18:29.499584+00:00",
+      "error": null,
+      "duration_seconds": 1.43
+    },
+    "calculate": {
+      "label": "Calculate Metrics",
+      "status": "complete",
+      "last_run": "2026-06-04T16:18:32.279577+00:00",
+      "summary": {
+        "baseline_start": "2026-06-01T00:00:00+00:00",
+        "baseline_end": "2026-06-01T06:00:00+00:00",
+        "services": 5,
+        "metrics": 12,
+        "metric_windows": 26,
+        "log_templates": 12
+      },
+      "started_at": "2026-06-04T16:18:30.995659+00:00",
+      "error": null,
+      "duration_seconds": 1.28
+    },
+    "detect": {
+      "label": "Detect Anomalies",
+      "status": "pending",
+      "last_run": null,
+      "summary": {}
+    },
+    "rca": {
+      "label": "Run RCA",
+      "status": "pending",
+      "last_run": null,
+      "summary": {}
+    }
+  },
+  "counts": {
+    "stream_events": 9832,
+    "stream_metric_rows": 3810,
+    "stream_log_rows": 6022,
+    "metric_windows": 26,
+    "log_templates": 12,
+    "events": 0,
+    "metric_events": 0,
+    "log_events": 0,
+    "alerts": 0,
+    "metric_alerts": 0,
+    "log_alerts": 0,
+    "rca_timeline": 0,
+    "rca_hypotheses": 0
+  },
+  "summaries": {
+    "stream": {
+      "mode": "preincident",
+      "stream_events": 9832,
+      "metric_rows": 3810,
+      "log_rows": 6022,
+      "services": [
+        "api-gateway",
+        "cart-service",
+        "order-service",
+        "payment-service",
+        "product-service"
+      ],
+      "start": "2026-06-01T00:00:00+00:00",
+      "end": "2026-06-01T06:20:30.896000+00:00",
+      "simulation_start": "2026-06-01T06:20:32.992000+00:00",
+      "incident_anchor": "2026-06-01T06:30:32.992000+00:00"
+    },
+    "calculate": {
+      "baseline_start": "2026-06-01T00:00:00+00:00",
+      "baseline_end": "2026-06-01T06:00:00+00:00",
+      "services": 5,
+      "metrics": 12,
+      "metric_windows": 26,
+      "log_templates": 12
+    }
+  }
+}
