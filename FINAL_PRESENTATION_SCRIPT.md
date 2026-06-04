@@ -49,13 +49,32 @@ RCA dựa vào thứ tự bằng chứng:
 
 Ordering này đặt cart-service trước downstream symptoms.
 
-## Slide 10 - Production Pipeline Diagram
+## Slide 10 - Production Live Pipeline
 
-Diagram được generate bằng Python `diagrams` package. Pipeline production: services -> OTel SDK/Collector -> Kafka topics -> Flink processing -> MAD/IF + Drain3 -> VictoriaMetrics/Loki/ClickHouse/S3 -> RCA dashboard.
+Production scenario: services emit metrics/logs/traces continuously. OTel Collector handles ingest and enrichment. Kafka buffers and makes the stream replayable. Flink computes windows and features. MAD + IF score metric anomalies. Drain3 templates logs. RCA service merges metric/log/trace evidence into an ordered timeline.
 
-Lý do chính: Kafka buffer/replay, Flink rolling features, storage tách hot/cold, dashboard trả lời WHEN/WHERE/WHAT.
+Core alert target: memory slope + GC pause + cache eviction template count + cart p99/5xx.
 
-## Slide 11 - ADR-Style Decisions
+## Slide 11 - Current Repo Live Simulation
+
+Current implementation is a local replay simulator, not a real Kafka/Flink deployment.
+
+Source is `g1/metrics/*.csv` and `g1/logs/*.jsonl`. `w1/lab/realtime.py` replays rows in timestamp order, updates rolling detector state, emits metric/log-template alerts, and writes RCA JSON artifacts.
+
+Production would swap local files for OTel, Kafka, Flink and hot stores, but the RCA logic stays conceptually the same.
+
+## Slide 12 - Simulating The Data Flow
+
+The dashboard demo flow has four stages:
+
+1. Replay: read metrics and log-template events in timestamp order.
+2. Gate: apply baseline thresholds, persistence and log-template count gates.
+3. Correlate: merge cart memory/GC/cache/OOM signals with downstream timeout/5xx.
+4. Present: dashboard shows alert stream, RCA timeline and ranked hypothesis.
+
+Key artifacts: `events.jsonl`, `alerts.jsonl`, `signals.json`, `rca_timeline.json`, `rca_hypotheses.json`.
+
+## Slide 13 - ADR-Style Decisions
 
 Giải thích theo ADR-lite:
 
@@ -63,6 +82,6 @@ Context: nhiều service, telemetry burst, cần RCA replay.
 Decision: OTel cho collection, Kafka cho transport, Flink cho stream processing, MAD+IF cho detection, Drain3 cho logs, VM/Loki/S3 cho storage.
 Trade-offs: thêm operational complexity, IF kém explainable hơn MAD, nhiều storage cần vận hành.
 
-## Slide 12 - Final Takeaway
+## Slide 14 - Final Takeaway
 
 Final takeaway: metrics answer WHEN, log templates answer WHERE, evidence ordering supports WHAT. Prevention nên bắt heap/cache pressure trước OOM bằng composite alert: memory slope + GC pause + cache eviction template count + cart latency/5xx.

@@ -59,3 +59,7 @@ Production version: OpenTelemetry SDK/Collector -> Kafka -> Flink processing -> 
 ## 15. Vì sao dùng format ADR cho phần pipeline?
 
 ADR giúp trả lời đủ bốn ý: context là vấn đề gì, quyết định chọn gì, vì sao chọn, và trade-off là gì. Với bài này, ADR-lite làm rõ vì sao chọn OTel, Kafka, Flink, MAD+IF, Drain3 và hot/cold storage thay vì chỉ vẽ architecture cho đẹp.
+
+## 16. Live pipeline hiện tại khác production như thế nào?
+
+Hiện tại repo dùng local replay simulator: đọc CSV/JSONL, phát sự kiện theo timestamp, chạy detector state trong Python, rồi ghi `events.jsonl`, `alerts.jsonl`, `signals.json`, `rca_timeline.json`, `rca_hypotheses.json`. Production sẽ thay file replay bằng OTel ingest, Kafka streaming, Flink window processing và dashboard đọc từ hot stores/RCA service.
