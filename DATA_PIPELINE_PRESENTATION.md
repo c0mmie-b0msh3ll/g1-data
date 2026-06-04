@@ -14,6 +14,12 @@ Pipeline không chỉ tìm thời điểm alert. Nó cố gắng tìm tín hiệ
 
 ## Pipeline Summary
 
+This presentation should be read together with `ARCHITECTURE.md`, which contains the full data-layer design aligned with the W1-D3 lesson:
+
+```text
+Service -> Collection -> Transport -> Processing -> Storage -> Query/AI
+```
+
 ```text
 Raw metrics + raw logs
         ↓
@@ -31,6 +37,8 @@ Dashboard / findings
 ```
 
 ## Architecture Diagram
+
+The diagram below is the analysis pipeline used by this repo. The production data-layer version is documented in `ARCHITECTURE.md`.
 
 ```mermaid
 flowchart TD
@@ -247,6 +255,14 @@ Architecture choice:
 - Timeline ordering answers WHAT.
 
 ## Main Architecture Choices
+
+These choices follow the lesson's architecture framing:
+
+- **Collection**: OpenTelemetry SDK/Collector in production; local file loading in this offline lab.
+- **Transport**: Kafka in production; local files as batch transport in this repo.
+- **Processing**: Flink/streaming in production; pandas batch processing in `w1/lab/analyze.py`.
+- **Storage**: VictoriaMetrics/Loki/S3 in production; CSV/PNG/HTML artifacts in `outputs/`.
+- **Query/AI**: detector jobs and RCA dashboard.
 
 ### 1. Offline pipeline
 
