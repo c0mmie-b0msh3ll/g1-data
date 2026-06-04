@@ -1,0 +1,16 @@
+timestamp,stage,service,signal_type,signal,evidence,rca_interpretation
+2026-06-01T06:08:00+00:00,metric anomaly,cart-service,metric,http_5xx_rate,robust MAD anomaly begins at 2026-06-01T06:08:00+00:00,cart degradation starts before downstream alert fan-out
+2026-06-01T06:30:32.992000+00:00,log signal,cart-service,log_template,GC warning,GC overhead limit warning: pause=713ms heap=93%,log evidence supports metric ordering
+2026-06-01T06:33:57.795000+00:00,log signal,cart-service,log_template,cache eviction failure,ProductCatalogCache eviction failed: heap pressure too high,log evidence supports metric ordering
+2026-06-01T14:40:00+00:00,metric anomaly,cart-service,metric,http_p99_latency_ms,robust MAD anomaly begins at 2026-06-01T14:40:00+00:00,cart degradation starts before downstream alert fan-out
+2026-06-01T16:26:00+00:00,metric anomaly,cart-service,metric,memory_usage_bytes,robust MAD anomaly begins at 2026-06-01T16:26:00+00:00,cart degradation starts before downstream alert fan-out
+2026-06-01T17:50:30+00:00,metric anomaly,cart-service,metric,jvm_gc_pause_ms_avg,robust MAD anomaly begins at 2026-06-01T17:50:30+00:00,cart degradation starts before downstream alert fan-out
+2026-06-01T19:59:26.256000+00:00,log signal,cart-service,log_template,connection refused,Upstream connection refused host=product-service,log evidence supports metric ordering
+2026-06-01T19:59:31.047000+00:00,log signal,cart-service,log_template,OOMKilled,Container OOMKilled: memory limit exceeded,log evidence supports metric ordering
+2026-06-01T20:00:00+00:00,metric anomaly,cart-service,metric,container_restart_count,robust MAD anomaly begins at 2026-06-01T20:00:00+00:00,cart degradation starts before downstream alert fan-out
+2026-06-01T20:00:00+00:00,restart loop,cart-service,metric,container_restart_count,restart counter first increases to 1,OOM/restart cycle becomes externally visible
+2026-06-01T20:00:58.858000+00:00,log signal,order-service,log_template,order timeout,Cart service timeout after 2467ms,log evidence supports metric ordering
+2026-06-01T20:08:00+00:00,downstream symptom,api-gateway,metric,cart_upstream_error_rate,robust MAD anomaly begins at 2026-06-01T20:08:00+00:00,cart failures propagate to callers
+2026-06-01T20:30:03.634000+00:00,log signal,order-service,log_template,order sees cart 5xx,Cart service returned 5xx status=500,log evidence supports metric ordering
+2026-06-01T20:32:00+00:00,downstream symptom,order-service,metric,upstream_timeout_rate,robust MAD anomaly begins at 2026-06-01T20:32:00+00:00,cart failures propagate to callers
+2026-06-01T20:45:00+00:00,downstream symptom,payment-service,metric,upstream_timeout_rate,robust MAD anomaly begins at 2026-06-01T20:45:00+00:00,cart failures propagate to callers
