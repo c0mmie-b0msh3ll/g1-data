@@ -73,34 +73,34 @@ def build_pipeline_diagram() -> Path:
         direction="LR",
         graph_attr={
             "bgcolor": "transparent",
-            "pad": "0.45",
-            "nodesep": "1.0",
-            "ranksep": "1.1",
+            "pad": "0.35",
+            "nodesep": "0.85",
+            "ranksep": "1.0",
             "splines": "spline",
             "fontname": "Arial",
-            "fontsize": "24",
-            "dpi": "180",
+            "fontsize": "30",
+            "dpi": "300",
         },
         node_attr={"fontname": "Arial", "fontsize": "18"},
-        edge_attr={"fontname": "Arial", "fontsize": "15", "color": "#52606d", "penwidth": "2"},
+        edge_attr={"fontname": "Arial", "fontsize": "17", "color": "#52606d", "penwidth": "2.4"},
     ):
-        services = Server("ShopX services\napi/cart/order/payment")
+        services = Server("ShopX services\napi/cart/order")
         otel = Prometheus("OpenTelemetry\nCollector")
-        kafka = Kafka("Kafka\ntelemetry topics")
+        kafka = Kafka("Kafka\ntopics")
 
         with Cluster("Stream processing"):
-            flink = Flink("Flink windows\nfeature extraction")
-            mad = Redis("MAD + IF\nmetric alerts")
-            drain = Redis("Drain3\nlog templates")
+            flink = Flink("Flink\nwindows")
+            mad = Redis("MAD + IF\nalerts")
+            drain = Redis("Drain3\ntemplates")
 
         with Cluster("Stores"):
-            hot = Clickhouse("Hot stores\nmetrics + logs")
-            cold = S3("S3 Parquet\nreplay archive")
+            hot = Clickhouse("Hot store\nmetrics/logs")
+            cold = S3("S3 Parquet\narchive")
 
-        dash = Grafana("RCA dashboard\nWHEN / WHERE / WHAT")
+        dash = Grafana("RCA\nDashboard")
 
-        services >> Edge(label="metrics / logs / traces") >> otel
-        otel >> Edge(label="batch + enrich") >> kafka
+        services >> Edge(label="metrics/logs/traces") >> otel
+        otel >> Edge(label="batch/enrich") >> kafka
         kafka >> Edge(label="stream") >> flink
         flink >> mad
         flink >> drain
