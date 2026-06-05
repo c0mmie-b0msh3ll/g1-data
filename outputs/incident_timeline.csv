@@ -1,5 +1,4 @@
 timestamp,stage,service,signal_type,signal,evidence,rca_interpretation
-2026-06-01T06:08:00+00:00,metric anomaly,cart-service,metric,http_5xx_rate,robust MAD anomaly begins at 2026-06-01T06:08:00+00:00,cart degradation starts before downstream alert fan-out
 2026-06-01T06:30:32.992000+00:00,log signal,cart-service,log_template,GC warning,GC overhead limit warning: pause=713ms heap=93%,log evidence supports metric ordering
 2026-06-01T06:33:57.795000+00:00,log signal,cart-service,log_template,cache eviction failure,ProductCatalogCache eviction failed: heap pressure too high,log evidence supports metric ordering
 2026-06-01T14:40:00+00:00,metric anomaly,cart-service,metric,http_p99_latency_ms,robust MAD anomaly begins at 2026-06-01T14:40:00+00:00,cart degradation starts before downstream alert fan-out

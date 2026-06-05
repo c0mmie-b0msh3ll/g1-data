@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-WHEN: the earliest sustained metric anomaly begins at `2026-06-01T06:08:00+00:00`. The silent cart-service signals are GC/cache/memory pressure before the user-facing alert burst.
+WHEN: the earliest reliable RCA evidence starts with cart-service GC/cache logs at `2026-06-01T06:30:32.992000+00:00` / `2026-06-01T06:33:57.795000+00:00`. The earliest reliable metric anomaly is `2026-06-01T14:40:00+00:00`. The earlier cart-service `http_5xx_rate` MAD crossing at `2026-06-01T06:08:00+00:00` is kept as a raw threshold event only, because that metric has many baseline false positives and is too noisy to define the incident start.
 
 WHERE: the primary origin is `cart-service`, led by memory pressure, JVM GC pauses, and cache eviction failure logs. The downstream symptoms appear later in `order-service`, `payment-service`, and `api-gateway`.
 
@@ -12,7 +12,6 @@ WHAT: the evidence supports a cart-service memory pressure incident. ProductCata
 
 | timestamp                        | stage              | service         | signal_type   | signal                   | evidence                                                    | rca_interpretation                                      |
 |:---------------------------------|:-------------------|:----------------|:--------------|:-------------------------|:------------------------------------------------------------|:--------------------------------------------------------|
-| 2026-06-01T06:08:00+00:00        | metric anomaly     | cart-service    | metric        | http_5xx_rate            | robust MAD anomaly begins at 2026-06-01T06:08:00+00:00      | cart degradation starts before downstream alert fan-out |
 | 2026-06-01T06:30:32.992000+00:00 | log signal         | cart-service    | log_template  | GC warning               | GC overhead limit warning: pause=713ms heap=93%             | log evidence supports metric ordering                   |
 | 2026-06-01T06:33:57.795000+00:00 | log signal         | cart-service    | log_template  | cache eviction failure   | ProductCatalogCache eviction failed: heap pressure too high | log evidence supports metric ordering                   |
 | 2026-06-01T14:40:00+00:00        | metric anomaly     | cart-service    | metric        | http_p99_latency_ms      | robust MAD anomaly begins at 2026-06-01T14:40:00+00:00      | cart degradation starts before downstream alert fan-out |
@@ -30,7 +29,7 @@ WHAT: the evidence supports a cart-service memory pressure incident. ProductCata
 
 ## Method Choice
 
-The final primary detector is robust 3-alpha/MAD against the first 6 hours because it is explainable and produces service/metric evidence that maps directly to the incident. IsolationForest is retained as a multivariate confirmation method. EWMA is used for trend smoothing and early slope visualization, not as the main classifier.
+The final primary detector is robust 3-alpha/MAD against the first 6 hours because it is explainable and produces service/metric evidence that maps directly to the incident. IsolationForest is retained as a multivariate confirmation method. EWMA is used for trend smoothing and early slope visualization, not as the main classifier. Signals with high baseline false-positive counts, such as `cart-service/http_5xx_rate`, are treated as weak threshold crossings rather than reliable RCA start markers.
 
 For readers who learned the classic 3-alpha rule as `mean + 3 * std`: this report uses the same 3-alpha idea, but with robust statistics. Instead of `mean`, it uses the baseline `median`. Instead of `std`, it uses `1.4826 * MAD`, where `MAD = median(|x - median(x)|)`. The factor `1.4826` converts MAD to a standard-deviation-like scale when the data is approximately normal. This makes the threshold less sensitive to baseline spikes:
 

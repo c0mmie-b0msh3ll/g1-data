@@ -6,6 +6,8 @@ Deck mới: `outputs/presentations/shopx-aiops-final-rca-html.pptx`.
 
 Kết luận chính: origin candidate là `cart-service`. RCA hypothesis không chỉ là downstream timeout, mà là `cart-service` đi vào heap/cache pressure trước khi OOM. Evidence chain gồm GC warning, ProductCatalogCache eviction failure, OOMKilled, restart loop, rồi lỗi lan sang gateway/order/payment.
 
+Về WHEN: mốc log đáng tin đầu tiên là `06:30/06:33 UTC`; mốc metric đáng tin đầu tiên là p99 latency `14:40 UTC`. `06:08` trên cart 5xx chỉ là raw/noisy MAD crossing, không dùng làm incident start.
+
 ## Slide 2 - Notebook Data Loaded
 
 Đưa output thật từ `EDA.ipynb`: mỗi service có 2,820 rows, interval 30 giây trong ngày `2026-06-01`, merged shape là `(2820, 27)`. Key metrics có missing count bằng 0. Ý chính: dữ liệu đủ sạch để phân tích, không phải dữ liệu bị thiếu lung tung.
@@ -20,18 +22,20 @@ Các hình histogram/boxplot là output trực tiếp từ notebook. Dùng slide
 
 ## Slide 5 - Exact MAD Evidence
 
-Timestamp anomaly map vào số liệu cụ thể:
+Reliable MAD evidence map vào số liệu cụ thể:
 
-- `06:08`: cart 5xx `1.03 > 0.354`.
 - `14:40`: p99 latency `148.7ms > 122.8ms`.
 - `16:26`: memory `0.62GB > 0.57GB`.
 - `17:50:30`: GC pause `131.8ms > 104.3ms`.
+- `20:00`: restart count `1 > 0`.
 
-Tất cả lấy từ `outputs/anomalies_metrics.csv`.
+Tất cả lấy từ `outputs/anomalies_metrics.csv`. Caveat quan trọng: cart `http_5xx_rate` có raw MAD crossing lúc `06:08`, nhưng false positive trong baseline là `297/720`, nên không dùng làm mốc RCA.
 
 ## Slide 6 - Detector Decision
 
 Final stance: robust MAD + IsolationForest. MAD là primary vì threshold rõ theo metric. IsolationForest confirm cart-service abnormal lúc `07:27`. EWMA chỉ là trend lens vì có false positives, ví dụ payment timeout `09:51` và cart 5xx baseline FP=12.
+
+EWMA trong source dùng `span=20`, tương đương alpha `2/(20+1) = 0.095`. Tuning alpha thấp hơn sẽ mượt hơn nhưng delay hơn; alpha cao hơn nhạy hơn và false positive nhiều hơn. Vì vấn đề chính là baseline/traffic ramp và metric noisy, tuning alpha không biến EWMA thành RCA detector tốt hơn MAD+IF trong dataset này.
 
 ## Slide 7 - Metric Evidence
 
@@ -45,7 +49,7 @@ Logs structured và consistent, nên nhận xét “logs khá gọn” là đún
 
 RCA dựa vào thứ tự bằng chứng:
 
-`06:08` metric 5xx -> `06:30` GC warning -> `06:33` cache eviction failed -> `16:26` memory threshold -> `17:50` GC threshold -> `19:59` OOMKilled -> `20:00+` fan-out downstream.
+`06:08` weak 5xx raw crossing, không dùng làm RCA start -> `06:30` GC warning -> `06:33` cache eviction failed -> `14:40` p99 latency threshold -> `16:26` memory threshold -> `17:50` GC threshold -> `19:59` OOMKilled -> `20:00+` fan-out downstream.
 
 Ordering này đặt cart-service trước downstream symptoms.
 

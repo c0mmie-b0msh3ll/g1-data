@@ -43,7 +43,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
 </header>
 <main>
 <section class="answer" id="executive-narrative">
-<div><h2>WHEN</h2><p>Metric anomaly kéo dài đầu tiên bắt đầu tại <code>2026-06-01T06:08:00+00:00</code>.</p><p>Silent signal đáng chú ý: GC warning <code>2026-06-01T06:30:32.992000+00:00</code>, cache eviction failure <code>2026-06-01T06:33:57.795000+00:00</code>.</p></div>
+<div><h2>WHEN</h2><p>Reliable metric anomaly đầu tiên bắt đầu tại <code>2026-06-01T14:40:00+00:00</code>.</p><p>Silent signal đáng chú ý: GC warning <code>2026-06-01T06:30:32.992000+00:00</code>, cache eviction failure <code>2026-06-01T06:33:57.795000+00:00</code>.</p><p>Raw MAD crossing của <code>cart-service/http_5xx_rate</code> lúc 06:08 bị hạ cấp vì false positive trong baseline quá cao.</p></div>
 <div><h2>WHERE</h2><p><code>cart-service</code> là origin candidate mạnh nhất.</p><p><code>api-gateway</code>, <code>order-service</code>, và <code>payment-service</code> phát triệu chứng downstream muộn hơn.</p></div>
 <div><h2>WHAT</h2><p>Cơ chế phù hợp nhất là memory pressure -> GC/cache issue -> OOMKilled -> restart loop -> downstream timeout/5xx.</p><p>OOMKilled <code>2026-06-01T19:59:31.047000+00:00</code>; restart bắt đầu <code>2026-06-01T20:00:00+00:00</code>.</p></div>
 </section>
@@ -67,13 +67,6 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
     </tr>
   </thead>
   <tbody>
-    <tr>
-      <td>2026-06-01T06:08:00+00:00</td>
-      <td>cart-service</td>
-      <td>http_5xx_rate</td>
-      <td>robust MAD anomaly begins at 2026-06-01T06:08:00+00:00</td>
-      <td>cart degradation starts before downstream alert fan-out</td>
-    </tr>
     <tr>
       <td>2026-06-01T06:30:32.992000+00:00</td>
       <td>cart-service</td>
@@ -148,13 +141,6 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
     </tr>
   </thead>
   <tbody>
-    <tr>
-      <td>2026-06-01T06:08:00+00:00</td>
-      <td>cart-service</td>
-      <td>http_5xx_rate</td>
-      <td>robust MAD anomaly begins at 2026-06-01T06:08:00+00:00</td>
-      <td>cart degradation starts before downstream alert fan-out</td>
-    </tr>
     <tr>
       <td>2026-06-01T06:30:32.992000+00:00</td>
       <td>cart-service</td>
@@ -384,7 +370,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>api-gateway/cart_upstream_error_rate</td>
       <td>EWMA decision: EWMA(span=20) &gt; median + 3 * sigma; median=0.386; sigma=0.068; threshold=0.590; persistence=3/5</td>
       <td>Phát hiện anomaly kéo dài lúc 2026-06-01T20:09:30+00:00; false positive baseline=0</td>
-      <td>Gateway nhìn thấy lỗi upstream từ cart. Kết quả phù hợp với triệu chứng downstream, không phải nguồn gốc đầu tiên.</td>
+      <td>Gateway nhìn thấy lỗi upstream từ cart. EWMA is retained as a smoothed trend view only. With span=20 it can show drift, but this row is not used as the final RCA decision label.</td>
     </tr>
     <tr>
       <td>MAD 3-sigma</td>
@@ -398,7 +384,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>cart-service/container_restart_count</td>
       <td>EWMA decision: EWMA(span=20) &gt; median + 3 * sigma; median=0.000; sigma=0.000; threshold=0.000; persistence=3/5</td>
       <td>Phát hiện anomaly kéo dài lúc 2026-06-01T20:00:00+00:00; false positive baseline=0</td>
-      <td>Bằng chứng restart loop sau OOMKilled. Kết quả ủng hộ cart-service là origin candidate trong chuỗi RCA.</td>
+      <td>Bằng chứng restart loop sau OOMKilled. EWMA is retained as a smoothed trend view only. With span=20 it can show drift, but this row is not used as the final RCA decision label.</td>
     </tr>
     <tr>
       <td>MAD 3-sigma</td>
@@ -412,21 +398,21 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>cart-service/http_5xx_rate</td>
       <td>EWMA decision: EWMA(span=20) &gt; median + 3 * sigma; median=0.556; sigma=0.160; threshold=1.037; persistence=3/5</td>
       <td>Phát hiện anomaly kéo dài lúc 2026-06-01T13:51:30+00:00; false positive baseline=12</td>
-      <td>Tác động user-facing trên chính cart-service. Kết quả ủng hộ cart-service là origin candidate trong chuỗi RCA.</td>
+      <td>Tác động user-facing trên chính cart-service. EWMA is retained as a smoothed trend view only. With span=20 it can show drift, but this row is not used as the final RCA decision label.</td>
     </tr>
     <tr>
       <td>MAD 3-sigma</td>
       <td>cart-service/http_5xx_rate</td>
       <td>MAD 3-sigma: value &gt; median + 3 * sigma; median=0.065; sigma=0.096; threshold=0.354; persistence=3/5</td>
       <td>Phát hiện anomaly kéo dài lúc 2026-06-01T06:08:00+00:00; false positive baseline=297</td>
-      <td>Tác động user-facing trên chính cart-service. Kết quả ủng hộ cart-service là origin candidate trong chuỗi RCA.</td>
+      <td>Tác động user-facing trên chính cart-service. Baseline false positives are high (297), so this threshold crossing is treated as a noisy/weak signal, not a reliable RCA start.</td>
     </tr>
     <tr>
       <td>EWMA trend</td>
       <td>cart-service/http_p99_latency_ms</td>
       <td>EWMA decision: EWMA(span=20) &gt; median + 3 * sigma; median=52.651; sigma=3.870; threshold=64.262; persistence=3/5</td>
       <td>Phát hiện anomaly kéo dài lúc 2026-06-01T14:13:30+00:00; false positive baseline=7</td>
-      <td>Tác động latency trước khi lỗi lan rộng. Kết quả ủng hộ cart-service là origin candidate trong chuỗi RCA.</td>
+      <td>Tác động latency trước khi lỗi lan rộng. EWMA is retained as a smoothed trend view only. With span=20 it can show drift, but this row is not used as the final RCA decision label.</td>
     </tr>
     <tr>
       <td>MAD 3-sigma</td>
@@ -440,7 +426,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>cart-service/jvm_gc_pause_ms_avg</td>
       <td>EWMA decision: EWMA(span=20) &gt; median + 3 * sigma; median=44.500; sigma=5.815; threshold=61.946; persistence=3/5</td>
       <td>Phát hiện anomaly kéo dài lúc 2026-06-01T08:55:30+00:00; false positive baseline=0</td>
-      <td>Tín hiệu JVM bị áp lực heap/GC. Kết quả ủng hộ cart-service là origin candidate trong chuỗi RCA.</td>
+      <td>Tín hiệu JVM bị áp lực heap/GC. EWMA is retained as a smoothed trend view only. With span=20 it can show drift, but this row is not used as the final RCA decision label.</td>
     </tr>
     <tr>
       <td>MAD 3-sigma</td>
@@ -454,7 +440,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>cart-service/memory_usage_bytes</td>
       <td>EWMA decision: EWMA(span=20) &gt; median + 3 * sigma; median=421947970.354; sigma=61843588.385; threshold=607478735.510; persistence=3/5</td>
       <td>Phát hiện anomaly kéo dài lúc 2026-06-01T16:28:00+00:00; false positive baseline=0</td>
-      <td>Tín hiệu tài nguyên chính của cart-service. Kết quả ủng hộ cart-service là origin candidate trong chuỗi RCA.</td>
+      <td>Tín hiệu tài nguyên chính của cart-service. EWMA is retained as a smoothed trend view only. With span=20 it can show drift, but this row is not used as the final RCA decision label.</td>
     </tr>
     <tr>
       <td>MAD 3-sigma</td>
@@ -468,7 +454,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>order-service/upstream_timeout_rate</td>
       <td>EWMA decision: EWMA(span=20) &gt; median + 3 * sigma; median=0.502; sigma=0.066; threshold=0.700; persistence=3/5</td>
       <td>Phát hiện anomaly kéo dài lúc 2026-06-01T20:32:30+00:00; false positive baseline=0</td>
-      <td>Caller order bị timeout khi gọi cart. Kết quả phù hợp với triệu chứng downstream, không phải nguồn gốc đầu tiên.</td>
+      <td>Caller order bị timeout khi gọi cart. EWMA is retained as a smoothed trend view only. With span=20 it can show drift, but this row is not used as the final RCA decision label.</td>
     </tr>
     <tr>
       <td>MAD 3-sigma</td>
@@ -482,7 +468,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>payment-service/upstream_timeout_rate</td>
       <td>EWMA decision: EWMA(span=20) &gt; median + 3 * sigma; median=0.249; sigma=0.032; threshold=0.346; persistence=3/5</td>
       <td>Phát hiện anomaly kéo dài lúc 2026-06-01T09:51:00+00:00; false positive baseline=3</td>
-      <td>Caller payment bị ảnh hưởng muộn hơn trong checkout. Kết quả phù hợp với triệu chứng downstream, không phải nguồn gốc đầu tiên.</td>
+      <td>Caller payment bị ảnh hưởng muộn hơn trong checkout. EWMA is retained as a smoothed trend view only. With span=20 it can show drift, but this row is not used as the final RCA decision label.</td>
     </tr>
     <tr>
       <td>MAD 3-sigma</td>
@@ -532,13 +518,6 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>2026-06-01T07:27:00+00:00</td>
       <td>22</td>
       <td>n_estimators=200; contamination=0.03; trained_on=first_6h; features=memory_usage_bytes,memory_limit_bytes,cpu_usage_percent,http_requests_per_sec,http_p99_latency_ms,http_5xx_rate,jvm_gc_pause_ms_avg,container_restart_count</td>
-    </tr>
-    <tr>
-      <td>robust_mad_3alpha</td>
-      <td>cart-service/http_5xx_rate</td>
-      <td>2026-06-01T06:08:00+00:00</td>
-      <td>297</td>
-      <td>formula=median + 3 * 1.4826 * MAD; median=0.065; sigma=0.096; threshold=0.354; persistence=3/5</td>
     </tr>
     <tr>
       <td>robust_mad_3alpha</td>
@@ -648,13 +627,6 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
     </tr>
   </thead>
   <tbody>
-    <tr>
-      <td>2026-06-01T06:08:00+00:00</td>
-      <td>cart-service</td>
-      <td>http_5xx_rate</td>
-      <td>robust MAD anomaly begins at 2026-06-01T06:08:00+00:00</td>
-      <td>cart degradation starts before downstream alert fan-out</td>
-    </tr>
     <tr>
       <td>2026-06-01T06:30:32.992000+00:00</td>
       <td>cart-service</td>
@@ -1107,7 +1079,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>cart-service/http_5xx_rate</td>
       <td>2026-06-01T06:08:00+00:00</td>
       <td>297</td>
-      <td>True</td>
+      <td>False</td>
       <td>formula=median + 3 * 1.4826 * MAD; median=0.065; sigma=0.096; threshold=0.354; persistence=3/5</td>
     </tr>
     <tr>

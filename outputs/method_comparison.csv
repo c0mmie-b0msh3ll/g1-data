@@ -36,7 +36,7 @@ robust_mad_3alpha,product-service,product-service/http_p99_latency_ms,,163,False
 robust_mad_3alpha,product-service,product-service/cpu_usage_percent,,96,False,formula=median + 3 * 1.4826 * MAD; median=20.925; sigma=9.785; threshold=50.280; persistence=3/5
 robust_mad_3alpha,product-service,product-service/http_5xx_rate,,155,False,formula=median + 3 * 1.4826 * MAD; median=0.455; sigma=0.675; threshold=2.479; persistence=3/5
 robust_mad_3alpha,api-gateway,api-gateway/http_5xx_rate,2026-06-01T06:00:00+00:00,358,False,formula=median + 3 * 1.4826 * MAD; median=0.000; sigma=0.000; threshold=0.000; persistence=3/5
-robust_mad_3alpha,cart-service,cart-service/http_5xx_rate,2026-06-01T06:08:00+00:00,297,True,formula=median + 3 * 1.4826 * MAD; median=0.065; sigma=0.096; threshold=0.354; persistence=3/5
+robust_mad_3alpha,cart-service,cart-service/http_5xx_rate,2026-06-01T06:08:00+00:00,297,False,formula=median + 3 * 1.4826 * MAD; median=0.065; sigma=0.096; threshold=0.354; persistence=3/5
 robust_mad_3alpha,api-gateway,api-gateway/active_connections,2026-06-01T06:47:00+00:00,1,False,formula=median + 3 * 1.4826 * MAD; median=336.000; sigma=19.274; threshold=393.821; persistence=3/5
 robust_mad_3alpha,product-service,product-service/http_requests_per_sec,2026-06-01T06:50:30+00:00,1,False,formula=median + 3 * 1.4826 * MAD; median=27.370; sigma=4.744; threshold=41.603; persistence=3/5
 robust_mad_3alpha,api-gateway,api-gateway/http_requests_per_sec,2026-06-01T07:02:30+00:00,0,False,formula=median + 3 * 1.4826 * MAD; median=54.620; sigma=8.540; threshold=80.239; persistence=3/5

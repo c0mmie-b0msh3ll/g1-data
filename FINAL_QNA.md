@@ -18,15 +18,15 @@ Với cart-service: p99 latency skewness `3.31`, restart count `3.20`, 5xx rate 
 
 ## 5. Vì sao dùng robust MAD?
 
-Vì nhiều metric có tail phải và outlier. robust MAD dùng median và MAD nên ít bị kéo lệch hơn mean/std. Nó còn cho threshold cụ thể theo từng metric, ví dụ cart 5xx tại `06:08` có value `1.03` vượt threshold `0.354`.
+Vì nhiều metric có tail phải và outlier. robust MAD dùng median và MAD nên ít bị kéo lệch hơn mean/std. Nó còn cho threshold cụ thể theo từng metric. Tuy nhiên vẫn phải audit false positive theo metric: cart `http_5xx_rate` có raw crossing lúc `06:08`, nhưng baseline false positive quá cao nên bị hạ cấp.
 
 ## 6. EWMA bị false positive ở đâu?
 
-Ví dụ `payment-service/upstream_timeout_rate` bị EWMA flag lúc `09:51 UTC`, trong khi MAD downstream symptom rõ là `20:45 UTC`. cart 5xx EWMA cũng có baseline false positives. Vì vậy EWMA không dùng làm detector chính.
+EWMA trong source dùng `span=20`, tức alpha `2/(20+1) = 0.095`. Ví dụ `payment-service/upstream_timeout_rate` bị EWMA flag lúc `09:51 UTC`, trong khi MAD downstream symptom rõ là `20:45 UTC`. cart 5xx EWMA cũng có baseline false positives. Vì vậy EWMA không dùng làm detector chính.
 
 ## 7. Nếu EWMA không đáng tin thì dùng làm gì?
 
-EWMA dùng để nhìn drift/trend vì nó làm mượt noise. Nó hữu ích cho visualization và early trend review, nhưng không nên dùng một mình để kết luận RCA trong dataset này.
+EWMA dùng để nhìn drift/trend vì nó làm mượt noise. Có thể tuning alpha, nhưng trade-off rất rõ: alpha thấp hơn mượt hơn nhưng trễ hơn; alpha cao hơn nhạy hơn nhưng false positive nhiều hơn. Với dataset này, vấn đề nằm ở metric noisy/traffic ramp, nên tuning alpha không tốt bằng dùng MAD+IF cho decision và EWMA cho visualization.
 
 ## 8. IsolationForest có evidence ở đâu?
 
@@ -40,13 +40,13 @@ IF là multivariate và khó giải thích threshold theo từng metric. Nó t�
 
 Có. Logs là JSONL structured, schema khá consistent, message format lặp lại. Drain3 phù hợp vì message vẫn có dynamic params như userId, orderId, status, duration, heap, pause. Drain3 giúp gom thành template và count theo thời gian.
 
-## 11. Bất thường lúc 06:08 lấy từ đâu?
+## 11. Bất thường lúc 06:08 lấy từ đâu, và vì sao bị hạ cấp?
 
-Từ `outputs/anomalies_metrics.csv`: `cart-service/http_5xx_rate` tại `2026-06-01T06:08:00+00:00`, value `1.03`, baseline median `0.065`, MAD threshold `0.354`, score khoảng `10.0σ`.
+Từ `outputs/anomalies_metrics.csv`: `cart-service/http_5xx_rate` tại `2026-06-01T06:08:00+00:00`, value `1.03`, baseline median `0.065`, MAD threshold `0.354`, score khoảng `10.0σ`. Nhưng audit lại cho thấy chính metric này có `297/720` điểm trong baseline vượt threshold, nên threshold quá nhạy với metric 5xx noisy/zero-inflated. Vì vậy `06:08` chỉ giữ như raw crossing, không dùng làm mốc RCA.
 
-## 12. Vì sao vẫn nói 06:08 dù OOMKilled gần 20:00?
+## 12. Vậy incident/RCA start nên nói lúc mấy giờ?
 
-06:08 là earliest sustained metric anomaly theo robust MAD. OOMKilled gần `19:59:31` là phase visible/nặng hơn. RCA cần phân biệt lúc degradation bắt đầu với lúc container bị kill.
+Không nên nói `06:08` là reliable RCA start. Mốc reliable evidence đầu tiên là log cart GC warning `06:30:32` và cache eviction failure `06:33:57`. Mốc reliable metric anomaly đầu tiên là cart p99 latency `14:40:00`. OOMKilled gần `19:59:31` là phase visible/nặng hơn, sau đó restart và downstream timeout/5xx lan rộng.
 
 ## 13. Alert production nên là gì?
 

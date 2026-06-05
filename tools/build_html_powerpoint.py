@@ -125,10 +125,10 @@ def metric_card_stats() -> dict[str, str]:
     anom = pd.read_csv(ROOT / "outputs" / "anomalies_metrics.csv")
     rows = {}
     keys = {
-        "5xx": ("http_5xx_rate", "2026-06-01T06:08:00+00:00"),
         "latency": ("http_p99_latency_ms", "2026-06-01T14:40:00+00:00"),
         "memory": ("memory_usage_bytes", "2026-06-01T16:26:00+00:00"),
         "gc": ("jvm_gc_pause_ms_avg", "2026-06-01T17:50:30+00:00"),
+        "restart": ("container_restart_count", "2026-06-01T20:00:00+00:00"),
     }
     for name, (metric, timestamp) in keys.items():
         r = anom[(anom.service == "cart-service") & (anom.metric == metric) & (anom.timestamp == timestamp)].iloc[0]
@@ -206,7 +206,7 @@ def build_html() -> str:
     .grid{display:grid;gap:22px}.cols3{grid-template-columns:repeat(3,1fr)}.cols4{grid-template-columns:repeat(4,1fr)}.card,.panel{background:linear-gradient(180deg,rgba(255,255,255,.075),rgba(255,255,255,.035));border:1px solid var(--line);border-radius:22px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.18)}.card h3{margin:0 0 14px;font-size:18px;line-height:1.28;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}.big{font-size:42px;line-height:1.16;font-weight:800}.note{font-size:20px;line-height:1.42;color:var(--muted)}.accent{color:var(--red)}.blue{color:var(--blue)}.green{color:var(--green)}.orange{color:var(--orange)}
     .footer{position:absolute;left:72px;right:72px;bottom:30px;border-top:1px solid rgba(150,160,170,.25);padding-top:12px;color:#7f8b98;font-size:13px;display:flex;justify-content:space-between}
     .figure{background:white;border-radius:18px;padding:14px;border:1px solid rgba(255,255,255,.2)}.figure img{width:100%;height:100%;object-fit:contain;display:block}.code{white-space:pre-wrap;font-family:Consolas,monospace;font-size:18px;line-height:1.35;background:#0c121a;border:1px solid #263342;border-radius:18px;padding:22px;color:#dbe7f3}
-    table{width:100%;border-collapse:collapse;font-size:16px}th,td{border-bottom:1px solid var(--line);padding:10px 12px;text-align:left;vertical-align:top}th{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}.timeline{position:absolute;left:130px;top:240px;width:1220px}.step{display:grid;grid-template-columns:130px 170px 1fr;gap:22px;align-items:center;margin:19px 0}.dot{width:22px;height:22px;border-radius:50%;background:var(--red);box-shadow:0 0 0 8px rgba(255,93,74,.12)}.rail{position:absolute;left:249px;top:258px;width:4px;height:470px;background:#344252}.tag{font-size:15px;line-height:1.3;color:var(--muted);text-transform:uppercase;font-weight:800}.time{font-size:24px;line-height:1.25;font-weight:800}.desc{font-size:23px;line-height:1.32}.kpi{font-size:76px;line-height:1.08;font-weight:800;letter-spacing:0}.split{display:grid;grid-template-columns:1.1fr .9fr;gap:34px;align-items:center}.small{font-size:15px}.quote{font-size:32px;line-height:1.28;font-weight:800}.pill{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:10px 15px;color:var(--muted);font-weight:800;margin-right:8px}.pipeline{display:grid;grid-template-columns:repeat(5,1fr);gap:18px;margin-top:62px}.pipe-card{height:210px}.arrow{position:absolute;top:390px;width:34px;height:4px;background:#617085}.arrow:after{content:"";position:absolute;right:-8px;top:-6px;border-left:10px solid #617085;border-top:8px solid transparent;border-bottom:8px solid transparent}
+    table{width:100%;border-collapse:collapse;font-size:16px}th,td{border-bottom:1px solid var(--line);padding:10px 12px;text-align:left;vertical-align:top}th{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}.timeline{position:absolute;left:130px;top:240px;width:1220px}.step{display:grid;grid-template-columns:130px 170px 1fr;gap:22px;align-items:center;margin:19px 0}.dot{width:22px;height:22px;border-radius:50%;background:var(--red);box-shadow:0 0 0 8px rgba(255,93,74,.18);display:block}.rail{position:absolute;left:162px;top:18px;width:4px;height:520px;background:#344252}.tag{font-size:15px;line-height:1.3;color:var(--muted);text-transform:uppercase;font-weight:800}.time{font-size:24px;line-height:1.25;font-weight:800}.desc{font-size:23px;line-height:1.32}.kpi{font-size:76px;line-height:1.08;font-weight:800;letter-spacing:0}.split{display:grid;grid-template-columns:1.1fr .9fr;gap:34px;align-items:center}.small{font-size:15px}.quote{font-size:32px;line-height:1.28;font-weight:800}.pill{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:10px 15px;color:var(--muted);font-weight:800;margin-right:8px}.pipeline{display:grid;grid-template-columns:repeat(5,1fr);gap:18px;margin-top:62px}.pipe-card{height:210px}.arrow{position:absolute;top:390px;width:34px;height:4px;background:#617085}.arrow:after{content:"";position:absolute;right:-8px;top:-6px;border-left:10px solid #617085;border-top:8px solid transparent;border-bottom:8px solid transparent}
     .flow{display:grid;gap:18px;margin-top:38px}.flow5{grid-template-columns:repeat(5,1fr)}.flow4{grid-template-columns:repeat(4,1fr)}.flow3{grid-template-columns:repeat(3,1fr)}.flow-card{position:relative;min-height:168px}.flow-card:after{content:"";position:absolute;right:-18px;top:75px;width:18px;height:3px;background:#9aa7b4}.flow-card:last-child:after{display:none}.num{width:42px;height:42px;border-radius:14px;background:var(--red);color:white;display:grid;place-items:center;font-weight:900;font-size:22px;margin-bottom:18px}.flow-card h3{font-size:22px;color:var(--ink);text-transform:none;letter-spacing:0}.dark .flow-card h3{color:var(--ink)}.live-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:34px}.lane-title{font-size:24px;font-weight:900;margin-bottom:12px}.mini-list{font-size:19px;line-height:1.38;color:var(--muted);margin:0;padding-left:22px}.matrix{display:grid;grid-template-columns:260px 1fr 1fr;gap:0;margin-top:34px;border:1px solid var(--line);border-radius:22px;overflow:hidden}.matrix>div{padding:18px 20px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);font-size:18px}.matrix>div:nth-child(3n){border-right:0}.matrix .head{font-weight:900;background:rgba(255,255,255,.08);color:var(--ink)}.light .matrix .head{background:#efe7da}.matrix .label{font-weight:900;color:var(--red)}
     """
 
@@ -220,7 +220,7 @@ def build_html() -> str:
       <div class="title">cart-service không chỉ timeout; nó đi vào heap/cache pressure trước khi OOM.</div>
       <div class="sub">Evidence-first final deck: EDA shape, detector threshold, Drain3 log templates, notebook output và production pipeline.</div>
       <div class="grid cols3" style="position:absolute;left:72px;right:72px;bottom:145px">
-        <div class="card"><h3>WHEN</h3><div class="big accent">06:08 UTC</div><div class="note">cart 5xx value 1.03 &gt; MAD threshold 0.354</div></div>
+        <div class="card"><h3>WHEN</h3><div class="big accent">06:30 / 14:40 UTC</div><div class="note">GC/cache logs first; reliable metric anomaly starts at cart p99 latency</div></div>
         <div class="card"><h3>WHERE</h3><div class="big blue">cart-service</div><div class="note">GC/cache/OOM templates xuất hiện trước downstream</div></div>
         <div class="card"><h3>WHAT</h3><div class="big green">heap/cache pressure</div><div class="note">ProductCatalogCache eviction failure + OOMKilled + restart loop</div></div>
       </div>{footer(1,'FINDINGS.md, anomalies_metrics.csv, incident_timeline.csv')}
@@ -267,14 +267,14 @@ def build_html() -> str:
     slides.append(f"""
     <section class="slide light">
       <div class="eyebrow">Exact robust MAD evidence</div>
-      <div class="title" style="font-size:46px">Timestamp anomaly map trực tiếp vào value, median, threshold và score.</div>
+      <div class="title" style="font-size:46px">Reliable MAD evidence map trực tiếp vào value, median, threshold và score.</div>
       <div class="figure" style="height:420px;margin-top:42px"><img src="{b64(CHARTS/'mad-cart-exact-evidence.png')}"></div>
       <div class="grid cols4" style="margin-top:22px">
-        <div class="card"><h3>5xx</h3><div class="big accent">{s['5xx']['time']}</div><div class="note">1.03 &gt; 0.354</div></div>
-        <div class="card"><h3>Latency</h3><div class="big orange">{s['latency']['time']}</div><div class="note">148.7ms &gt; 122.8ms</div></div>
+        <div class="card"><h3>Reliable metric start</h3><div class="big accent">{s['latency']['time']}</div><div class="note">p99 148.7ms &gt; 122.8ms</div></div>
         <div class="card"><h3>Memory</h3><div class="big blue">{s['memory']['time']}</div><div class="note">0.62GB &gt; 0.57GB</div></div>
         <div class="card"><h3>GC pause</h3><div class="big green">{s['gc']['time']}</div><div class="note">131.8ms &gt; 104.3ms</div></div>
-      </div>{footer(5,'outputs/anomalies_metrics.csv')}
+        <div class="card"><h3>Restart</h3><div class="big orange">{s['restart']['time']}</div><div class="note">restart count 1 &gt; 0</div></div>
+      </div><div class="sub" style="font-size:19px;margin-top:14px">Caveat: cart http_5xx_rate raw MAD crossing at 06:08 is excluded as RCA start because baseline FP=297/720.</div>{footer(5,'outputs/anomalies_metrics.csv, method_comparison.csv')}
     </section>""")
 
     slides.append(f"""
@@ -286,7 +286,7 @@ def build_html() -> str:
         <div class="grid">
           <div class="card"><h3>MAD</h3><div class="big accent">primary</div><div class="note">threshold cụ thể theo metric, audit được WHEN</div></div>
           <div class="card"><h3>IsolationForest</h3><div class="big blue">07:27</div><div class="note">cart-service multivariate abnormality confirmation</div></div>
-          <div class="card"><h3>EWMA caveat</h3><div class="big orange">false positives</div><div class="note">payment timeout 09:51, cart 5xx baseline FP=12; không dùng làm RCA chính</div></div>
+          <div class="card"><h3>EWMA caveat</h3><div class="big orange">span=20</div><div class="note">false positives remain after smoothing; use as drift lens, not final RCA label</div></div>
         </div>
       </div>{footer(6,'method_comparison.csv, detector_observability.csv')}
     </section>""")
@@ -320,9 +320,10 @@ def build_html() -> str:
     </section>""")
 
     steps = [
-        ("06:08", "cart metric", "http_5xx_rate anomaly: value 1.03 > threshold 0.354"),
-        ("06:30", "cart log", "GC overhead warning, pause=713ms heap=93%"),
+        ("06:08", "weak metric", "cart http_5xx_rate raw MAD crossing; baseline FP=297/720, not RCA start"),
+        ("06:30", "reliable log", "GC overhead warning, pause=713ms heap=93%"),
         ("06:33", "cart log", "ProductCatalogCache eviction failed: heap pressure too high"),
+        ("14:40", "cart metric", "http_p99_latency_ms crosses robust threshold with low baseline FP"),
         ("16:26", "cart metric", "memory_usage_bytes crosses robust threshold"),
         ("17:50", "cart metric", "jvm_gc_pause_ms_avg crosses threshold"),
         ("19:59", "cart log", "OOMKilled: memory limit exceeded"),

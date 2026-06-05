@@ -173,11 +173,10 @@ def robust_mad_anomalies(metrics: dict[str, pd.DataFrame]) -> tuple[pd.DataFrame
                             "score": (float(row[metric]) - med) / sigma if sigma else np.nan,
                         }
                     )
-            supports = service == "cart-service" and metric in {
+            supports = service == "cart-service" and false_pos <= 5 and metric in {
                 "memory_usage_bytes",
                 "jvm_gc_pause_ms_avg",
                 "http_p99_latency_ms",
-                "http_5xx_rate",
                 "container_restart_count",
             }
             detections.append(
@@ -302,6 +301,7 @@ def detector_observability(comparison: pd.DataFrame) -> pd.DataFrame:
         method = row["method"]
         metric = row["affected_metric_service"]
         detected = bool(str(row["earliest_detection"]).strip())
+        baseline_fp = int(row["false_positive_count_first_6h"])
         if method == "robust_mad_3alpha":
             threshold_text = (
                 f"MAD 3-sigma: value > median + 3 * sigma; "
@@ -319,7 +319,17 @@ def detector_observability(comparison: pd.DataFrame) -> pd.DataFrame:
             if detected
             else f"Không phát hiện anomaly kéo dài sau baseline; false positive baseline={row['false_positive_count_first_6h']}"
         )
-        if metric.startswith("cart-service/") and detected:
+        if method == "ewma_trend":
+            interpretation = (
+                f"{focus[metric]} EWMA is retained as a smoothed trend view only. "
+                f"With span={parts.get('span', '20')} it can show drift, but this row is not used as the final RCA decision label."
+            )
+        elif baseline_fp > 20:
+            interpretation = (
+                f"{focus[metric]} Baseline false positives are high ({baseline_fp}), "
+                "so this threshold crossing is treated as a noisy/weak signal, not a reliable RCA start."
+            )
+        elif metric.startswith("cart-service/") and detected:
             interpretation = f"{focus[metric]} Kết quả ủng hộ cart-service là origin candidate trong chuỗi RCA."
         elif metric.startswith(("api-gateway/", "order-service/", "payment-service/")) and detected:
             interpretation = f"{focus[metric]} Kết quả phù hợp với triệu chứng downstream, không phải nguồn gốc đầu tiên."
@@ -464,7 +474,7 @@ def important_events(metrics: dict[str, pd.DataFrame], logs: pd.DataFrame, anoma
             )
 
     cart = metrics["cart-service"]
-    for metric in ["jvm_gc_pause_ms_avg", "memory_usage_bytes", "http_p99_latency_ms", "http_5xx_rate", "container_restart_count"]:
+    for metric in ["http_p99_latency_ms", "memory_usage_bytes", "jvm_gc_pause_ms_avg", "container_restart_count"]:
         match = anomalies[(anomalies["service"] == "cart-service") & (anomalies["metric"] == metric)]
         if not match.empty:
             first = pd.to_datetime(match["timestamp"], utc=True).min()
@@ -591,7 +601,7 @@ def generate_reports(metrics_summary: pd.DataFrame, comparison: pd.DataFrame, dr
 
 ## Executive Summary
 
-WHEN: the earliest sustained metric anomaly begins at `{first_metric}`. The silent cart-service signals are GC/cache/memory pressure before the user-facing alert burst.
+WHEN: the earliest reliable RCA evidence starts with cart-service GC/cache logs at `{gc_time}` / `{cache_time}`. The earliest reliable metric anomaly is `{first_metric}`. The earlier cart-service `http_5xx_rate` MAD crossing at `2026-06-01T06:08:00+00:00` is kept as a raw threshold event only, because that metric has many baseline false positives and is too noisy to define the incident start.
 
 WHERE: the primary origin is `cart-service`, led by memory pressure, JVM GC pauses, and cache eviction failure logs. The downstream symptoms appear later in `order-service`, `payment-service`, and `api-gateway`.
 
@@ -603,7 +613,7 @@ WHAT: the evidence supports a cart-service memory pressure incident. ProductCata
 
 ## Method Choice
 
-The final primary detector is robust 3-alpha/MAD against the first {BASELINE_HOURS} hours because it is explainable and produces service/metric evidence that maps directly to the incident. IsolationForest is retained as a multivariate confirmation method. EWMA is used for trend smoothing and early slope visualization, not as the main classifier.
+The final primary detector is robust 3-alpha/MAD against the first {BASELINE_HOURS} hours because it is explainable and produces service/metric evidence that maps directly to the incident. IsolationForest is retained as a multivariate confirmation method. EWMA is used for trend smoothing and early slope visualization, not as the main classifier. Signals with high baseline false-positive counts, such as `cart-service/http_5xx_rate`, are treated as weak threshold crossings rather than reliable RCA start markers.
 
 For readers who learned the classic 3-alpha rule as `mean + 3 * std`: this report uses the same 3-alpha idea, but with robust statistics. Instead of `mean`, it uses the baseline `median`. Instead of `std`, it uses `1.4826 * MAD`, where `MAD = median(|x - median(x)|)`. The factor `1.4826` converts MAD to a standard-deviation-like scale when the data is approximately normal. This makes the threshold less sensitive to baseline spikes:
 
@@ -800,7 +810,7 @@ code {{ background: #eef2f7; padding: 1px 4px; border-radius: 4px; }}
 </header>
 <main>
 <section class="answer">
-<div><h2>WHEN</h2><p>Anomaly metric kéo dài đầu tiên: <code>{html.escape(str(first_metric))}</code>.</p><p>Silent signal ở log xuất hiện sớm: GC warning lúc <code>{html.escape(gc_time)}</code> và cache eviction failure lúc <code>{html.escape(cache_time)}</code>.</p></div>
+<div><h2>WHEN</h2><p>Reliable metric anomaly đầu tiên: <code>{html.escape(str(first_metric))}</code>.</p><p>Silent signal ở log xuất hiện sớm hơn: GC warning lúc <code>{html.escape(gc_time)}</code> và cache eviction failure lúc <code>{html.escape(cache_time)}</code>.</p><p><code>cart-service/http_5xx_rate</code> có raw MAD crossing lúc 06:08 nhưng baseline false positive quá cao, nên không dùng làm mốc RCA.</p></div>
 <div><h2>WHERE</h2><p><code>cart-service</code> là ứng viên nguồn gốc vì tín hiệu tài nguyên nội bộ xuất hiện trước alert ở các service downstream.</p><p>Chỉ báo chính: memory usage, JVM GC pause, cache eviction failure, OOMKilled, restart count.</p></div>
 <div><h2>WHAT</h2><p>Cơ chế khả dĩ nhất: cart bị áp lực memory, kéo theo GC/cache degradation, sau đó OOMKilled restart, rồi lan ra caller timeout và 5xx.</p><p>OOMKilled: <code>{html.escape(oom_time)}</code>; restart tăng: <code>{html.escape(restart_time)}</code>.</p></div>
 </section>
@@ -901,7 +911,7 @@ def write_postmortem_dashboard(metrics_summary: pd.DataFrame, comparison: pd.Dat
 
     when_evidence = pd.concat(
         [
-            rows_for("http_5xx_rate|GC warning|cache eviction|http_p99_latency_ms|memory_usage_bytes|jvm_gc_pause_ms_avg"),
+            rows_for("GC warning|cache eviction|http_p99_latency_ms|memory_usage_bytes|jvm_gc_pause_ms_avg"),
             rows_for("OOMKilled|container_restart_count").head(2),
         ],
         ignore_index=True,
@@ -986,7 +996,7 @@ code {{ background: #eef2f7; padding: 1px 4px; border-radius: 4px; }}
 </header>
 <main>
 <section class="answer" id="executive-narrative">
-<div><h2>WHEN</h2><p>Metric anomaly kéo dài đầu tiên bắt đầu tại <code>{html.escape(str(first_metric))}</code>.</p><p>Silent signal đáng chú ý: GC warning <code>{html.escape(gc_time)}</code>, cache eviction failure <code>{html.escape(cache_time)}</code>.</p></div>
+<div><h2>WHEN</h2><p>Reliable metric anomaly đầu tiên bắt đầu tại <code>{html.escape(str(first_metric))}</code>.</p><p>Silent signal đáng chú ý: GC warning <code>{html.escape(gc_time)}</code>, cache eviction failure <code>{html.escape(cache_time)}</code>.</p><p>Raw MAD crossing của <code>cart-service/http_5xx_rate</code> lúc 06:08 bị hạ cấp vì false positive trong baseline quá cao.</p></div>
 <div><h2>WHERE</h2><p><code>cart-service</code> là origin candidate mạnh nhất.</p><p><code>api-gateway</code>, <code>order-service</code>, và <code>payment-service</code> phát triệu chứng downstream muộn hơn.</p></div>
 <div><h2>WHAT</h2><p>Cơ chế phù hợp nhất là memory pressure -> GC/cache issue -> OOMKilled -> restart loop -> downstream timeout/5xx.</p><p>OOMKilled <code>{html.escape(oom_time)}</code>; restart bắt đầu <code>{html.escape(restart_time)}</code>.</p></div>
 </section>
