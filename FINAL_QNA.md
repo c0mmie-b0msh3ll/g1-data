@@ -44,13 +44,65 @@ Có. Logs là JSONL structured, schema khá consistent, message format lặp l�
 
 Từ `outputs/anomalies_metrics.csv`: `cart-service/http_5xx_rate` tại `2026-06-01T06:08:00+00:00`, value `1.03`, baseline median `0.065`, MAD threshold `0.354`, score khoảng `10.0σ`. Nhưng audit lại cho thấy chính metric này có `297/720` điểm trong baseline vượt threshold, nên threshold quá nhạy với metric 5xx noisy/zero-inflated. Vì vậy `06:08` chỉ giữ như raw crossing, không dùng làm mốc RCA.
 
+## 11b. Có phải mình tính sai MAD cho 5xx không?
+
+Không. Calculation đúng theo công thức `median + 3 * 1.4826 * MAD`. Sai ở detector choice: metric 5xx noisy/zero-inflated nên MAD threshold `0.354` nằm trong vùng baseline bình thường. Baseline audit cho thấy p75 `1.06`, p95 `2.00`, p99 `2.00`, nên threshold này không qua quality gate.
+
+Detector sửa lại là `http_5xx_sustained`: baseline first 6h, threshold `max(baseline_p99 * 1.5, 3.0) = 3.00`, persistence `5/10` điểm 30s, và volume guard `http_requests_per_sec >= baseline p50`. Kết quả cho cart 5xx: baseline FP `0`, decision `2026-06-01T20:41:30+00:00`, `impact_signal=True`, `supports_rca_chain=False`. Đây là impact evidence, không phải root-cause start.
+
+## 11c. Detector 5xx vượt ngưỡng duy trì là gì?
+
+Nó là rule detector theo cửa sổ thời gian, không phải ML. Thay vì alert ngay khi một điểm 5xx vượt ngưỡng, nó chỉ alert khi lỗi vượt ngưỡng đủ nhiều lần trong một cửa sổ gần nhất.
+
+Trong bản báo cáo, detector chạy như sau:
+
+- Lấy 6 giờ đầu làm baseline.
+- Tính p99 baseline của `http_5xx_rate`; với cart-service, p99 baseline là `2.00`.
+- Đặt threshold `max(2.00 * 1.5, 3.0) = 3.00`.
+- Với mỗi timestamp sau baseline, nhìn lại 10 điểm gần nhất. Vì interval là 30 giây, 10 điểm là 5 phút.
+- Alert khi ít nhất 5/10 điểm có `http_5xx_rate > 3.00`.
+- Chỉ xét những điểm có `http_requests_per_sec >= baseline p50` để tránh alert từ tỷ lệ lỗi méo mó khi traffic quá thấp.
+
+Cách này giảm false positive rất mạnh: cart 5xx baseline FP từ `297/720` ở MAD xuống `0`.
+
+Kết quả trong `outputs/method_comparison.csv`: `cart-service/http_5xx_rate` được detect lúc `2026-06-01T20:41:30+00:00`. Dòng này được đánh dấu `impact_signal=True` và `supports_rca_chain=False`, nghĩa là nó xác nhận impact 5xx user-facing sau khi cart đã restart/downstream đã có triệu chứng; nó không phải bằng chứng bắt đầu root cause.
+
+Trade-off là detect chậm hơn. Nếu production cần nhạy hơn, nên tách 3 mức: cảnh báo sớm `3/5` với ngưỡng mềm hơn, nghiêm trọng duy trì `5/10` như báo cáo, và bùng nổ tức thì khi 5xx tăng rất lớn. Không nên đổi detector chính thành `1/1` vì sẽ quay lại alert nhiễu.
+
+## 11d. Figure EDA thật support audit 5xx như thế nào?
+
+Deck có hai lớp figure support.
+
+Thứ nhất là figure baseline 6 giờ được generate từ `g1/metrics/cart-service.csv`:
+
+- `outputs/charts/cart-5xx-baseline-6h-audit.png`.
+- Bên trái: time series 6 giờ đầu, có MAD threshold `0.354` và các điểm bị flag false positive.
+- Bên phải: histogram baseline, có median `0.065`, p75 `1.06`, p95/p99 `2.00`.
+
+Figure này giải thích điểm yếu của baseline: 6 giờ đầu đủ để hiệu chỉnh detector, nhưng riêng metric 5xx đã noisy ngay trong baseline, nên MAD tạo `297/720` false positive.
+
+Thứ hai là output trực tiếp từ `EDA.ipynb`:
+
+- `notebook-figure-01.png`: histogram/density của `cart__http_5xx_rate`.
+- `notebook-figure-02.png`: ACF plot của `cart__http_5xx_rate`.
+
+Histogram cho thấy đa số giá trị nằm sát 0 nhưng đuôi kéo dài tới `16.78`; số EDA đi kèm là `p50=0.38`, `p95=9.53`, `p99=14.43`, `skew=2.77`. Vì vậy metric này lệch phải và có spike/tail mạnh.
+
+ACF cho thấy metric có tương quan theo thời gian, nên không nên alert theo từng crossing đơn lẻ. Đây là lý do detector 5xx dùng cửa sổ `5/10` thay vì `1/1`.
+
 ## 12. Vậy incident/RCA start nên nói lúc mấy giờ?
 
 Không nên nói `06:08` là reliable RCA start. Mốc reliable evidence đầu tiên là log cart GC warning `06:30:32` và cache eviction failure `06:33:57`. Mốc reliable metric anomaly đầu tiên là cart p99 latency `14:40:00`. OOMKilled gần `19:59:31` là phase visible/nặng hơn, sau đó restart và downstream timeout/5xx lan rộng.
 
 ## 13. Alert production nên là gì?
 
-Composite alert cho cart-service: memory slope tăng, GC pause vượt robust baseline, ProductCatalogCache eviction failure template count tăng, cart 5xx/p99 latency tăng, và guardrail cho OOMKilled + restart loop.
+Composite alert cho cart-service: memory slope tăng, GC pause vượt robust baseline, ProductCatalogCache eviction failure template count tăng, p99 latency tăng, 5xx theo 3 mức warning/critical/severe, và guardrail cho OOMKilled + restart loop.
+
+Riêng 5xx nên tách:
+
+- Cảnh báo sớm: ngưỡng mềm hơn, ví dụ `max(p95 * 1.2, 2.0)`, persistence `3/5`.
+- Nghiêm trọng duy trì: ngưỡng hiện tại `max(p99 * 1.5, 3.0)`, persistence `5/10`, baseline FP `0`.
+- Bùng nổ tức thì: đường tắt khi 5xx bùng nổ, ví dụ `max(p99 * 4.0, 10.0)`, có guard theo traffic.
 
 ## 14. Bonus pipeline nên nói gì?
 

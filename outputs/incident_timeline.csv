@@ -12,4 +12,5 @@ timestamp,stage,service,signal_type,signal,evidence,rca_interpretation
 2026-06-01T20:08:00+00:00,downstream symptom,api-gateway,metric,cart_upstream_error_rate,robust MAD anomaly begins at 2026-06-01T20:08:00+00:00,cart failures propagate to callers
 2026-06-01T20:30:03.634000+00:00,log signal,order-service,log_template,order sees cart 5xx,Cart service returned 5xx status=500,log evidence supports metric ordering
 2026-06-01T20:32:00+00:00,downstream symptom,order-service,metric,upstream_timeout_rate,robust MAD anomaly begins at 2026-06-01T20:32:00+00:00,cart failures propagate to callers
+2026-06-01T20:41:30+00:00,impact signal,cart-service,metric,sustained 5xx impact,http_5xx_sustained decision: 5 of 10 points above threshold 3.0 with traffic volume guard,user-facing impact evidence after restart/downstream symptoms; not the RCA start
 2026-06-01T20:45:00+00:00,downstream symptom,payment-service,metric,upstream_timeout_rate,robust MAD anomaly begins at 2026-06-01T20:45:00+00:00,cart failures propagate to callers

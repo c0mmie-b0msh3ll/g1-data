@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import argparse
 import base64
 import html
 import json
 import os
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import pandas as pd
 from PIL import Image, ImageChops
 from pptx import Presentation
@@ -175,11 +177,94 @@ def table_rows(path: Path, cols: list[str], limit: int | None = None, where=None
     return "\n".join(out)
 
 
+def cart_5xx_detector_summary() -> dict[str, str]:
+    comp = pd.read_csv(ROOT / "outputs" / "method_comparison.csv")
+    eda = pd.read_csv(CHARTS / "cart_eda_distribution_stats.csv")
+    eda_5xx = eda[eda.metric == "http_5xx_rate"].iloc[0]
+    cart_metrics = pd.read_csv(ROOT / "g1" / "metrics" / "cart-service.csv")
+    cart_5xx = cart_metrics["http_5xx_rate"].astype(float)
+    mad = comp[(comp.method == "robust_mad_3alpha") & (comp.affected_metric_service == "cart-service/http_5xx_rate")].iloc[0]
+    sustained = comp[(comp.method == "http_5xx_sustained") & (comp.affected_metric_service == "cart-service/http_5xx_rate")].iloc[0]
+    return {
+        "mad_time": str(mad.earliest_detection)[11:19],
+        "mad_fp": str(mad.false_positive_count_first_6h),
+        "sustained_time": str(sustained.earliest_detection)[11:19],
+        "sustained_fp": str(sustained.false_positive_count_first_6h),
+        "skewness": f"{float(eda_5xx['skewness']):.2f}",
+        "kurtosis": f"{float(eda_5xx['kurtosis']):.2f}",
+        "p50": f"{float(eda_5xx['p50']):.2f}",
+        "p95": f"{float(eda_5xx['p95']):.2f}",
+        "p99": f"{float(eda_5xx['p99']):.2f}",
+        "max": f"{float(eda_5xx['max']):.2f}",
+        "mean": f"{float(cart_5xx.mean()):.4f}",
+        "std": f"{float(cart_5xx.std()):.4f}",
+    }
+
+
+def build_cart_5xx_baseline_audit_figure() -> Path:
+    CHARTS.mkdir(parents=True, exist_ok=True)
+    out = CHARTS / "cart-5xx-baseline-6h-audit.png"
+    df = pd.read_csv(ROOT / "g1" / "metrics" / "cart-service.csv")
+    df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True)
+    base_end = df["timestamp"].min() + pd.Timedelta(hours=6)
+    baseline = df[df["timestamp"] < base_end].copy()
+    rate = baseline["http_5xx_rate"].astype(float)
+    median = float(rate.median())
+    mad = float((rate - median).abs().median())
+    sigma = 1.4826 * mad
+    mad_threshold = median + 3 * sigma
+    p75 = float(rate.quantile(0.75))
+    p95 = float(rate.quantile(0.95))
+    p99 = float(rate.quantile(0.99))
+    fp_mask = rate > mad_threshold
+
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5.2), dpi=150)
+    ax = axes[0]
+    ax.plot(baseline["timestamp"], rate, color="#315f9d", lw=1.0, label="5xx rate baseline")
+    ax.scatter(baseline.loc[fp_mask, "timestamp"], rate[fp_mask], s=16, color="#d94841", label=f"FP theo MAD: {int(fp_mask.sum())}/720")
+    ax.axhline(mad_threshold, color="#d94841", ls="--", lw=1.4, label=f"MAD threshold={mad_threshold:.3f}")
+    ax.axhline(p95, color="#6a994e", ls=":", lw=1.4, label=f"baseline p95={p95:.2f}")
+    ax.set_title("Baseline 6 giờ đầu: cart http_5xx_rate theo thời gian")
+    ax.set_ylabel("http_5xx_rate")
+    ax.grid(True, alpha=0.25)
+    ax.legend(loc="upper right", fontsize=8)
+
+    ax = axes[1]
+    ax.hist(rate, bins=28, color="#8aa7d6", edgecolor="white", alpha=0.9)
+    for value, label, color, style in [
+        (median, f"median={median:.3f}", "#1f2933", "-"),
+        (mad_threshold, f"MAD threshold={mad_threshold:.3f}", "#d94841", "--"),
+        (p75, f"p75={p75:.2f}", "#f4a261", ":"),
+        (p95, f"p95={p95:.2f}", "#6a994e", ":"),
+        (p99, f"p99={p99:.2f}", "#2a9d8f", ":"),
+    ]:
+        ax.axvline(value, color=color, ls=style, lw=1.6, label=label)
+    ax.set_title("Phân phối baseline 6 giờ: ngưỡng MAD nằm quá thấp")
+    ax.set_xlabel("http_5xx_rate")
+    ax.set_ylabel("số điểm")
+    ax.grid(True, alpha=0.25)
+    ax.legend(loc="upper right", fontsize=8)
+
+    fig.suptitle("Audit baseline 6 giờ cho cart-service/http_5xx_rate", fontsize=14, fontweight="bold")
+    fig.tight_layout()
+    fig.savefig(out, bbox_inches="tight")
+    plt.close(fig)
+    return out
+
+
 def build_html() -> str:
     build_pipeline_diagram()
     nb_figs = save_notebook_outputs()
+    baseline_5xx_fig = build_cart_5xx_baseline_audit_figure()
     loaded, stats_text = notebook_text_blocks()
+    loaded_vi = (
+        loaded.replace("Loaded services:", "Các service đã load:")
+        .replace(" rows, from ", " dòng, từ ")
+        .replace(" to ", " đến ")
+        .replace("Merged shape:", "Kích thước bảng sau khi merge:")
+    )
     s = metric_card_stats()
+    d5xx = cart_5xx_detector_summary()
     cart_eda = pd.read_csv(CHARTS / "cart_eda_distribution_stats.csv")
     eda_rows = "\n".join(
         f"<tr><td>{html.escape(r.metric)}</td><td>{r.skewness:.2f}</td><td>{r.kurtosis:.2f}</td><td>{r.p50:.2f}</td><td>{r.p99:.2f}</td></tr>"
@@ -218,116 +303,170 @@ def build_html() -> str:
     <section class="slide">
       <div class="eyebrow">ShopX AIOps W1 RCA</div>
       <div class="title">cart-service không chỉ timeout; nó đi vào heap/cache pressure trước khi OOM.</div>
-      <div class="sub">Evidence-first final deck: EDA shape, detector threshold, Drain3 log templates, notebook output và production pipeline.</div>
+      <div class="sub">Deck cuối theo hướng evidence-first: hình dạng phân phối EDA, ngưỡng detector, log template Drain3, output notebook và pipeline vận hành.</div>
       <div class="grid cols3" style="position:absolute;left:72px;right:72px;bottom:145px">
-        <div class="card"><h3>WHEN</h3><div class="big accent">06:30 / 14:40 UTC</div><div class="note">GC/cache logs first; reliable metric anomaly starts at cart p99 latency</div></div>
-        <div class="card"><h3>WHERE</h3><div class="big blue">cart-service</div><div class="note">GC/cache/OOM templates xuất hiện trước downstream</div></div>
-        <div class="card"><h3>WHAT</h3><div class="big green">heap/cache pressure</div><div class="note">ProductCatalogCache eviction failure + OOMKilled + restart loop</div></div>
+        <div class="card"><h3>KHI NÀO</h3><div class="big accent">06:30 / 14:40 UTC</div><div class="note">Log GC/cache xuất hiện trước; metric đáng tin đầu tiên là cart p99 latency</div></div>
+        <div class="card"><h3>Ở ĐÂU</h3><div class="big blue">cart-service</div><div class="note">Template GC/cache/OOM xuất hiện trước lỗi downstream</div></div>
+        <div class="card"><h3>CƠ CHẾ</h3><div class="big green">heap/cache pressure</div><div class="note">ProductCatalogCache eviction failure + OOMKilled + restart loop</div></div>
       </div>{footer(1,'FINDINGS.md, anomalies_metrics.csv, incident_timeline.csv')}
     </section>""")
 
     slides.append(f"""
     <section class="slide light">
-      <div class="eyebrow">Notebook output: data loaded</div>
+      <div class="eyebrow">Output notebook: dữ liệu đã load</div>
       <div class="title" style="font-size:50px">EDA notebook xác nhận dữ liệu đủ sạch để phân tích, không phải dữ liệu log/metric rác.</div>
       <div class="split" style="margin-top:44px">
-        <div class="code" style="height:390px">{html.escape(loaded)}</div>
+        <div class="code" style="height:390px">{html.escape(loaded_vi)}</div>
         <div class="grid" style="gap:18px">
-          <div class="card"><h3>Metric coverage</h3><div class="kpi accent">2,820</div><div class="note">rows / service, 30s interval, one full day</div></div>
-          <div class="card"><h3>Missing values</h3><div class="kpi green">0%</div><div class="note">notebook missing table: all key metrics have missing_count = 0</div></div>
+          <div class="card"><h3>Độ phủ metric</h3><div class="kpi accent">2,820</div><div class="note">dòng / service, interval 30 giây, đủ một ngày</div></div>
+          <div class="card"><h3>Giá trị thiếu</h3><div class="kpi green">0%</div><div class="note">bảng missing trong notebook: các metric chính đều có missing_count = 0</div></div>
         </div>
-      </div>{footer(2,'EDA.ipynb cell outputs')}
+      </div>{footer(2,'output cell từ EDA.ipynb')}
     </section>""")
 
     slides.append(f"""
     <section class="slide light">
-      <div class="eyebrow">EDA: distribution shape</div>
-      <div class="title" style="font-size:48px">Right-skew không phải nói chung chung: chính dataset này có tail phải rất rõ.</div>
+      <div class="eyebrow">EDA: hình dạng phân phối</div>
+      <div class="title" style="font-size:48px">Lệch phải không phải nói chung chung: chính dataset này có đuôi phải rất rõ.</div>
       <div class="split" style="grid-template-columns:.8fr 1.2fr;margin-top:42px">
         <div class="panel">
-          <table><thead><tr><th>cart metric</th><th>skew</th><th>kurtosis</th><th>p50</th><th>p99</th></tr></thead><tbody>{eda_rows}</tbody></table>
+          <table><thead><tr><th>metric cart</th><th>độ lệch</th><th>kurtosis</th><th>p50</th><th>p99</th></tr></thead><tbody>{eda_rows}</tbody></table>
         </div>
         <div class="figure" style="height:440px"><img src="{b64(CHARTS/'eda-cart-distributions.png')}"></div>
       </div>
-      <div class="sub" style="font-size:22px;max-width:1320px">Kurtosis cao = nhiều extreme values/outlier hơn normal shape. Vì vậy median/MAD ít bị kéo lệch hơn mean/std.</div>
+      <div class="sub" style="font-size:22px;max-width:1320px">Kurtosis cao nghĩa là nhiều giá trị cực đoan/outlier hơn phân phối normal. Vì vậy median/MAD ít bị kéo lệch hơn mean/std.</div>
       {footer(3,'outputs/charts/eda-cart-distributions.png, cart_eda_distribution_stats.csv')}
     </section>""")
 
     slides.append(f"""
     <section class="slide">
-      <div class="eyebrow">Notebook figures embedded</div>
-      <div class="title" style="font-size:46px">Notebook output được đưa thẳng vào deck: histogram/boxplot cho các signal chính.</div>
+      <div class="eyebrow">Hình từ notebook</div>
+      <div class="title" style="font-size:46px">Output notebook được đưa thẳng vào deck: histogram/boxplot cho các signal chính.</div>
       <div class="grid cols4" style="margin-top:42px">
         {''.join(f'<div class="figure" style="height:260px"><img src="{b64(p)}"></div>' for p in nb_figs[:4])}
       </div>
-      <div class="sub">Các figure này là output trực tiếp từ `EDA.ipynb`, dùng để support phân phối skewed và outlier.</div>
-      {footer(4,'EDA.ipynb image/png outputs')}
+      <div class="sub">Các hình này là output trực tiếp từ `EDA.ipynb`, dùng để chứng minh phân phối lệch và có outlier.</div>
+      {footer(4,'output hình ảnh từ EDA.ipynb')}
     </section>""")
 
     slides.append(f"""
     <section class="slide light">
-      <div class="eyebrow">Exact robust MAD evidence</div>
-      <div class="title" style="font-size:46px">Reliable MAD evidence map trực tiếp vào value, median, threshold và score.</div>
+      <div class="eyebrow">EDA baseline 6 giờ cho 5xx</div>
+      <div class="title" style="font-size:44px">Baseline 6 giờ là cửa sổ hiệu chỉnh detector, nhưng cũng là nơi lộ điểm yếu của MAD trên cart 5xx.</div>
+      <div class="split" style="grid-template-columns:1.35fr .65fr;margin-top:28px">
+        <div class="figure" style="height:505px"><img src="{b64(baseline_5xx_fig)}"></div>
+        <div class="grid" style="gap:16px">
+          <div class="card"><h3>Vì sao dùng 6 giờ?</h3><div class="note">Dùng 6 giờ đầu làm baseline vì đây là cửa sổ trước giai đoạn OOM/restart, đủ 720 điểm ở interval 30 giây để tính median, MAD và percentile.</div></div>
+          <div class="card"><h3>Điểm yếu thấy ngay</h3><div class="note">Median baseline chỉ 0.065, nhưng p75=1.06 và p95/p99=2.00. Ngưỡng MAD 0.354 nằm quá thấp so với nhiễu baseline.</div></div>
+          <div class="card"><h3>Kết luận audit</h3><div class="note">MAD flag 297/720 điểm trong chính baseline. Vì vậy 06:08 chỉ là lần vượt ngưỡng thô, không phải mốc RCA đáng tin.</div></div>
+        </div>
+      </div>{footer(5,'g1/metrics/cart-service.csv, baseline 6h EDA audit')}
+    </section>""")
+
+    slides.append(f"""
+    <section class="slide light">
+      <div class="eyebrow">Bằng chứng MAD chính xác</div>
+      <div class="title" style="font-size:46px">Bằng chứng MAD đáng tin map trực tiếp vào value, median, ngưỡng và score.</div>
       <div class="figure" style="height:420px;margin-top:42px"><img src="{b64(CHARTS/'mad-cart-exact-evidence.png')}"></div>
       <div class="grid cols4" style="margin-top:22px">
-        <div class="card"><h3>Reliable metric start</h3><div class="big accent">{s['latency']['time']}</div><div class="note">p99 148.7ms &gt; 122.8ms</div></div>
-        <div class="card"><h3>Memory</h3><div class="big blue">{s['memory']['time']}</div><div class="note">0.62GB &gt; 0.57GB</div></div>
+        <div class="card"><h3>Metric đáng tin đầu tiên</h3><div class="big accent">{s['latency']['time']}</div><div class="note">p99 148.7ms &gt; 122.8ms</div></div>
+        <div class="card"><h3>Bộ nhớ</h3><div class="big blue">{s['memory']['time']}</div><div class="note">0.62GB &gt; 0.57GB</div></div>
         <div class="card"><h3>GC pause</h3><div class="big green">{s['gc']['time']}</div><div class="note">131.8ms &gt; 104.3ms</div></div>
         <div class="card"><h3>Restart</h3><div class="big orange">{s['restart']['time']}</div><div class="note">restart count 1 &gt; 0</div></div>
-      </div><div class="sub" style="font-size:19px;margin-top:14px">Caveat: cart http_5xx_rate raw MAD crossing at 06:08 is excluded as RCA start because baseline FP=297/720.</div>{footer(5,'outputs/anomalies_metrics.csv, method_comparison.csv')}
+      </div><div class="sub" style="font-size:19px;margin-top:14px">Bằng chứng anomaly hỗ trợ RCA vẫn là p99, memory, GC và restart. Raw MAD crossing của cart http_5xx_rate lúc 06:08 là failure case của detector vì baseline FP=297/720.</div>{footer(6,'outputs/anomalies_metrics.csv, method_comparison.csv')}
     </section>""")
 
     slides.append(f"""
     <section class="slide">
-      <div class="eyebrow">Detector decision</div>
-      <div class="title" style="font-size:48px">Final stance: robust MAD + IsolationForest; EWMA chỉ dùng để đọc drift.</div>
-      <div class="split" style="margin-top:40px">
-        <div class="figure" style="height:470px"><img src="{b64(CHARTS/'detector-evidence-table.png')}"></div>
+      <div class="eyebrow">Audit detector: sửa 5xx</div>
+      <div class="title" style="font-size:46px">Tính MAD không sai; sai là chọn MAD cho metric cart 5xx quá nhiễu.</div>
+      <div class="split" style="margin-top:32px">
         <div class="grid">
-          <div class="card"><h3>MAD</h3><div class="big accent">primary</div><div class="note">threshold cụ thể theo metric, audit được WHEN</div></div>
-          <div class="card"><h3>IsolationForest</h3><div class="big blue">07:27</div><div class="note">cart-service multivariate abnormality confirmation</div></div>
-          <div class="card"><h3>EWMA caveat</h3><div class="big orange">span=20</div><div class="note">false positives remain after smoothing; use as drift lens, not final RCA label</div></div>
+          <div class="card"><h3>Raw crossing của MAD</h3><div class="big accent">{d5xx['mad_time']}</div><div class="note">ngưỡng 0.354 từ median 0.065; baseline FP={d5xx['mad_fp']}/720, nên không qua cổng kiểm định chất lượng.</div></div>
+          <div class="card"><h3>Detector 5xx vượt ngưỡng duy trì</h3><div class="big green">{d5xx['sustained_time']}</div><div class="note">Baseline p99=2.00, threshold=max(p99*1.5, 3.0)=3.00; alert khi ít nhất 5/10 điểm gần nhất vượt ngưỡng và request rate >= baseline p50. Baseline FP={d5xx['sustained_fp']}.</div></div>
         </div>
-      </div>{footer(6,'method_comparison.csv, detector_observability.csv')}
+        <div class="grid">
+          <div class="card"><h3>Cách dùng đúng</h3><div class="big blue">tác động</div><div class="note">Detector kéo dài bắt 5xx ảnh hưởng người dùng sau restart/triệu chứng downstream, không dùng làm mốc bắt đầu root cause.</div></div>
+          <div class="card"><h3>Anomaly hỗ trợ RCA</h3><div class="big orange">14:40+</div><div class="note">p99 latency, memory, GC pause và restart vẫn là chuỗi MAD giải thích RCA.</div></div>
+        </div>
+      </div>
+      <div class="panel" style="position:absolute;left:72px;right:72px;top:670px;padding:12px 20px">
+        <div class="grid cols3" style="gap:18px">
+          <div><h3>Bằng chứng EDA thật</h3><div class="note" style="font-size:18px;line-height:1.35">Notebook/output EDA: mean={d5xx['mean']}, std={d5xx['std']}, skew={d5xx['skewness']}; p50={d5xx['p50']}, p95={d5xx['p95']}, p99={d5xx['p99']}, max={d5xx['max']}.</div></div>
+          <div><h3>Lệch phải là gì?</h3><div class="note" style="font-size:18px;line-height:1.35">Đa số điểm nằm thấp quanh p50=0.38, nhưng có đuôi dài tới 16.78; skew dương 2.77 xác nhận tail bên phải.</div></div>
+          <div><h3>Kết quả detector 5xx</h3><div class="note" style="font-size:18px;line-height:1.35">Detect lúc {d5xx['sustained_time']}, baseline FP=0, impact_signal=True, supports_rca_chain=False. Đây là impact sau restart/downstream, không phải RCA start.</div></div>
+        </div>
+      </div>{footer(7,'method_comparison.csv, detector_observability.csv, cart EDA stats')}
     </section>""")
 
     slides.append(f"""
     <section class="slide light">
-      <div class="eyebrow">Metric evidence</div>
+      <div class="eyebrow">Figure EDA thật cho audit MAD</div>
+      <div class="title" style="font-size:44px">Hình từ EDA.ipynb giải thích vì sao cart 5xx không nên dùng MAD một điểm.</div>
+      <div class="split" style="grid-template-columns:1fr 1fr;margin-top:30px">
+        <div class="figure" style="height:360px"><img src="{b64(nb_figs[0])}"></div>
+        <div class="figure" style="height:360px"><img src="{b64(nb_figs[1])}"></div>
+      </div>
+      <div class="grid cols3" style="margin-top:22px">
+        <div class="card"><h3>Histogram</h3><div class="note">Phần lớn giá trị nằm sát 0, nhưng vẫn có đuôi kéo dài tới 16.78. Đây là lý do ngưỡng MAD 0.354 dễ nằm trong vùng baseline nhiễu.</div></div>
+        <div class="card"><h3>ACF</h3><div class="note">Metric có tương quan theo thời gian, không phải các điểm độc lập hoàn toàn. Vì vậy detector nên đọc theo cửa sổ thời gian, không đọc từng lần vượt ngưỡng đơn lẻ.</div></div>
+        <div class="card"><h3>Luật detector</h3><div class="note">Dùng ngưỡng percentile 3.00, yêu cầu 5/10 điểm vượt ngưỡng và lưu lượng request đủ lớn. Kết quả: 20:41:30, số điểm báo sai trong baseline=0.</div></div>
+      </div>
+      {footer(8,'EDA.ipynb figure output, method_comparison.csv')}
+    </section>""")
+
+    slides.append(f"""
+    <section class="slide">
+      <div class="eyebrow">Tuning độ nhạy cho 5xx</div>
+      <div class="title" style="font-size:46px">Đánh đổi chính: càng ít báo sai thì detector càng chậm.</div>
+      <div class="grid cols3" style="margin-top:42px">
+        <div class="card"><h3>Mức 1: cảnh báo sớm</h3><div class="big blue">3/5</div><div class="note">Ngưỡng mềm: max(p95 * 1.2, 2.0). Dùng để báo nghi ngờ sớm, chấp nhận nhiễu hơn một chút.</div></div>
+        <div class="card"><h3>Mức 2: nghiêm trọng duy trì</h3><div class="big green">5/10</div><div class="note">Ngưỡng hiện tại: max(p99 * 1.5, 3.0). Đây là detector dùng trong báo cáo vì số điểm báo sai trong baseline = 0.</div></div>
+        <div class="card"><h3>Mức 3: bùng nổ tức thì</h3><div class="big accent">1/1</div><div class="note">Đường tắt khi 5xx bùng nổ: max(p99 * 4.0, 10.0), vẫn cần kiểm tra lưu lượng request.</div></div>
+      </div>
+      <div class="panel" style="position:absolute;left:120px;right:120px;bottom:132px;text-align:center">
+        <span class="quote" style="font-size:30px">Trong bài này giữ mức nghiêm trọng duy trì để chứng minh tác động chắc chắn; khi chạy thật nên thêm cảnh báo sớm và bùng nổ tức thì để phản ứng nhanh hơn.</span>
+      </div>
+      {footer(9,'khuyến nghị tuning detector từ audit 5xx')}
+    </section>""")
+
+    slides.append(f"""
+    <section class="slide light">
+      <div class="eyebrow">Bằng chứng metric</div>
       <div class="title" style="font-size:48px">Cart metrics cho thấy pressure tích lũy trước OOM/restart.</div>
       <div class="split" style="grid-template-columns:1.25fr .75fr;margin-top:34px">
         <div class="figure" style="height:515px"><img src="{b64(CHARTS/'cart-service-metrics.png')}"></div>
         <div class="grid">
-          <div class="card"><h3>Memory pressure</h3><div class="big blue">16:26</div><div class="note">memory_usage_bytes vượt MAD threshold</div></div>
-          <div class="card"><h3>GC pressure</h3><div class="big orange">17:50</div><div class="note">GC pause 131.8ms &gt; threshold 104.3ms</div></div>
-          <div class="card"><h3>Visible failure</h3><div class="big accent">20:00</div><div class="note">restart_count từ 0 lên 1 sau OOMKilled</div></div>
+          <div class="card"><h3>Áp lực bộ nhớ</h3><div class="big blue">16:26</div><div class="note">memory_usage_bytes vượt ngưỡng MAD</div></div>
+          <div class="card"><h3>Áp lực GC</h3><div class="big orange">17:50</div><div class="note">GC pause 131.8ms &gt; ngưỡng 104.3ms</div></div>
+          <div class="card"><h3>Lỗi nhìn thấy được</h3><div class="big accent">20:00</div><div class="note">restart_count từ 0 lên 1 sau OOMKilled</div></div>
         </div>
-      </div>{footer(7,'cart-service-metrics.png, anomalies_metrics.csv')}
+      </div>{footer(10,'cart-service-metrics.png, anomalies_metrics.csv')}
     </section>""")
 
     slides.append(f"""
     <section class="slide">
-      <div class="eyebrow">Log evidence + Drain3 fit</div>
-      <div class="title" style="font-size:46px">Logs structured và consistent; Drain3 dùng để template hóa dynamic params và count pattern theo thời gian.</div>
+      <div class="eyebrow">Bằng chứng log + độ phù hợp Drain3</div>
+      <div class="title" style="font-size:46px">Log có cấu trúc và nhất quán; Drain3 dùng để template hóa tham số động và đếm pattern theo thời gian.</div>
       <div class="split" style="margin-top:34px">
         <div class="figure" style="height:455px"><img src="{b64(CHARTS/'key-log-template-timeseries.png')}"></div>
         <div class="panel" style="height:455px;overflow:hidden">
-          <table><thead><tr><th>ID</th><th>svc</th><th>lvl</th><th>count</th><th>first seen</th><th>template</th></tr></thead><tbody>{log_rows}</tbody></table>
+          <table><thead><tr><th>ID</th><th>svc</th><th>level</th><th>số lần</th><th>thấy đầu tiên</th><th>template</th></tr></thead><tbody>{log_rows}</tbody></table>
         </div>
       </div>
       <div class="sub" style="font-size:22px">Bạn nói đúng: logs khá gọn. Drain3 không “cứu data bẩn”; nó biến message có userId/status/duration/heap/pause thành template đếm được.</div>
-      {footer(8,'g1/logs/*.jsonl, log_templates.csv, key-log-template-timeseries.png')}
+      {footer(11,'g1/logs/*.jsonl, log_templates.csv, key-log-template-timeseries.png')}
     </section>""")
 
     steps = [
-        ("06:08", "weak metric", "cart http_5xx_rate raw MAD crossing; baseline FP=297/720, not RCA start"),
+        ("06:08", "MAD false early alert", "cart http_5xx_rate raw crossing; baseline FP=297/720, failed quality gate"),
         ("06:30", "reliable log", "GC overhead warning, pause=713ms heap=93%"),
         ("06:33", "cart log", "ProductCatalogCache eviction failed: heap pressure too high"),
         ("14:40", "cart metric", "http_p99_latency_ms crosses robust threshold with low baseline FP"),
         ("16:26", "cart metric", "memory_usage_bytes crosses robust threshold"),
         ("17:50", "cart metric", "jvm_gc_pause_ms_avg crosses threshold"),
         ("19:59", "cart log", "OOMKilled: memory limit exceeded"),
-        ("20:00+", "fan-out", "restart loop, gateway upstream error, order/payment timeout"),
+        ("20:41", "sustained 5xx impact", "corrected 5xx detector fires after restart/downstream symptoms"),
     ]
     steps_html = '<div class="rail"></div>' + "".join(f'<div class="step"><div class="time">{t}</div><div><span class="dot"></span></div><div><div class="tag">{html.escape(tag)}</div><div class="desc">{html.escape(desc)}</div></div></div>' for t, tag, desc in steps)
     slides.append(f"""
@@ -335,7 +474,7 @@ def build_html() -> str:
       <div class="eyebrow">Evidence ordering</div>
       <div class="title" style="font-size:48px">RCA mạnh lên nhờ thứ tự bằng chứng, không nhờ một signal đơn lẻ.</div>
       <div class="timeline">{steps_html}</div>
-      {footer(9,'incident_timeline.csv, FINDINGS.md')}
+      {footer(12,'incident_timeline.csv, FINDINGS.md')}
     </section>""")
 
     slides.append(f"""
@@ -350,7 +489,7 @@ def build_html() -> str:
           <div class="card" style="padding:18px 20px;min-height:140px"><h3>RCA</h3><div class="big green" style="font-size:30px">Dashboard</div><div class="note" style="font-size:17px">Hot stores and replay archive support evidence ordering.</div></div>
         </div>
       </div>
-      {footer(10,'Generated by Python diagrams package in tools/build_html_powerpoint.py')}
+      {footer(13,'Generated by Python diagrams package in tools/build_html_powerpoint.py')}
     </section>""")
 
     slides.append(f"""
@@ -367,7 +506,7 @@ def build_html() -> str:
       <div class="panel" style="margin-top:42px">
         <span class="quote" style="font-size:30px">Early alert target: memory slope + GC pause + cache eviction template count + cart p99/5xx.</span>
       </div>
-      {footer(11,'Production scenario synthesized from ARCHITECTURE.md and DATA_PIPELINE_PRESENTATION.md')}
+      {footer(14,'Production scenario synthesized from ARCHITECTURE.md and DATA_PIPELINE_PRESENTATION.md')}
     </section>""")
 
     slides.append(f"""
@@ -401,7 +540,7 @@ def build_html() -> str:
         <div class="label">Processing</div><div>Python state machine, MAD thresholds, Drain3 templates</div><div>Flink window jobs + model workers</div>
         <div class="label">RCA</div><div>Rule-based evidence gate writes `rca_timeline.json`</div><div>RCA service correlates metric/log/trace evidence continuously</div>
       </div>
-      {footer(12,'w1/lab/realtime.py, outputs/realtime/*.jsonl, outputs/realtime/*.json')}
+      {footer(15,'w1/lab/realtime.py, outputs/realtime/*.jsonl, outputs/realtime/*.json')}
     </section>""")
 
     slides.append(f"""
@@ -419,7 +558,7 @@ def build_html() -> str:
         <div class="card"><h3>Detection stream</h3><div class="big accent">alerts.jsonl</div><div class="note">metric + log-template alerts</div></div>
         <div class="card"><h3>RCA output</h3><div class="big green">hypotheses.json</div><div class="note">cart-service ranked as origin candidate</div></div>
       </div>
-      {footer(13,'realtime_dashboard.py snapshot and realtime.py replay pipeline')}
+      {footer(16,'realtime_dashboard.py snapshot and realtime.py replay pipeline')}
     </section>""")
 
     slides.append(f"""
@@ -430,11 +569,11 @@ def build_html() -> str:
         <div class="card"><h3>ADR-01: Collection</h3><div class="big blue">OTel</div><div class="note"><b>Context:</b> nhiều service, cần schema chung.<br><b>Decision:</b> SDK + Collector.<br><b>Trade-off:</b> thêm instrumentation effort.</div></div>
         <div class="card"><h3>ADR-02: Transport</h3><div class="big orange">Kafka</div><div class="note"><b>Context:</b> telemetry burst/backpressure.<br><b>Decision:</b> topics by signal type.<br><b>Trade-off:</b> operational complexity.</div></div>
         <div class="card"><h3>ADR-03: Processing</h3><div class="big accent">Flink</div><div class="note"><b>Context:</b> cần rolling windows/replay.<br><b>Decision:</b> streaming; pandas for lab.<br><b>Trade-off:</b> heavier than batch.</div></div>
-        <div class="card"><h3>ADR-04: Detection</h3><div class="big green">MAD + IF</div><div class="note"><b>Context:</b> skewed incident metrics.<br><b>Decision:</b> MAD primary, IF confirm.<br><b>Trade-off:</b> IF less explainable.</div></div>
+        <div class="card"><h3>ADR-04: Detection</h3><div class="big green">MAD + 5xx gate</div><div class="note"><b>Context:</b> skewed metrics, noisy 5xx.<br><b>Decision:</b> MAD for RCA-supported anomalies; percentile+sustained for 5xx impact.<br><b>Trade-off:</b> metric-specific logic.</div></div>
         <div class="card"><h3>ADR-05: Logs</h3><div class="big blue">Drain3</div><div class="note"><b>Context:</b> logs structured but dynamic params.<br><b>Decision:</b> template mining.<br><b>Trade-off:</b> calibration needed.</div></div>
         <div class="card"><h3>ADR-06: Storage</h3><div class="big orange">Hot + cold</div><div class="note"><b>Context:</b> query recent + replay history.<br><b>Decision:</b> VM/Loki/S3.<br><b>Trade-off:</b> multiple stores.</div></div>
       </div>
-      {footer(14,'ADR content synthesized from ARCHITECTURE.md and DATA_PIPELINE_PRESENTATION.md')}
+      {footer(17,'ADR content synthesized from ARCHITECTURE.md and DATA_PIPELINE_PRESENTATION.md')}
     </section>""")
 
     slides.append(f"""
@@ -443,14 +582,20 @@ def build_html() -> str:
       <div class="title">cart-service là origin candidate; prevention phải bắt heap/cache pressure trước OOM.</div>
       <div class="grid cols3" style="margin-top:78px">
         <div class="card"><h3>RCA</h3><div class="big accent">heap/cache</div><div class="note">GC warning + cache eviction failure + OOMKilled</div></div>
-        <div class="card"><h3>Detection</h3><div class="big blue">MAD + IF</div><div class="note">MAD cho threshold; IF confirm service abnormality</div></div>
+        <div class="card"><h3>Detection</h3><div class="big blue">MAD audited</div><div class="note">RCA-supported anomalies stay in MAD; noisy 5xx uses sustained impact detector</div></div>
         <div class="card"><h3>Ops</h3><div class="big green">guardrail</div><div class="note">restart loop + OOMKilled + downstream blast radius</div></div>
       </div>
       <div class="panel" style="position:absolute;left:120px;right:120px;bottom:140px;text-align:center"><span class="quote">Metrics answer WHEN. Log templates answer WHERE. Evidence ordering supports WHAT.</span></div>
-      {footer(15,'Final synthesis from repo artifacts')}
+      {footer(18,'Final synthesis from repo artifacts')}
     </section>""")
 
     return f"<!doctype html><html><head><meta charset='utf-8'><style>{css}</style></head><body><main class='deck'>{''.join(slides)}</main></body></html>"
+
+
+def write_html_only() -> None:
+    OUT.mkdir(parents=True, exist_ok=True)
+    HTML_OUT.write_text(build_html(), encoding="utf-8")
+    print(f"Wrote {HTML_OUT}")
 
 
 def render_and_export() -> None:
@@ -489,4 +634,10 @@ def render_and_export() -> None:
 
 
 if __name__ == "__main__":
-    render_and_export()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--html-only", action="store_true", help="Write the HTML deck without rendering slides or exporting PPTX.")
+    args = parser.parse_args()
+    if args.html_only:
+        write_html_only()
+    else:
+        render_and_export()

@@ -233,6 +233,13 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>cart failures propagate to callers</td>
     </tr>
     <tr>
+      <td>2026-06-01T20:41:30+00:00</td>
+      <td>cart-service</td>
+      <td>sustained 5xx impact</td>
+      <td>http_5xx_sustained decision: 5 of 10 points above threshold 3.0 with traffic volume guard</td>
+      <td>user-facing impact evidence after restart/downstream symptoms; not the RCA start</td>
+    </tr>
+    <tr>
       <td>2026-06-01T20:45:00+00:00</td>
       <td>payment-service</td>
       <td>upstream_timeout_rate</td>
@@ -408,6 +415,13 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>Tác động user-facing trên chính cart-service. Baseline false positives are high (297), so this threshold crossing is treated as a noisy/weak signal, not a reliable RCA start.</td>
     </tr>
     <tr>
+      <td>sustained 5xx impact detector</td>
+      <td>cart-service/http_5xx_rate</td>
+      <td>Sustained 5xx impact detector: rate &gt; max(baseline p99 * 1.5, 3.0) and requests &gt;= baseline request p50; baseline_p50=0.065; baseline_p75=1.060; baseline_p95=2.000; baseline_p99=2.000; threshold=3.000; persistence=5/10</td>
+      <td>Phát hiện anomaly kéo dài lúc 2026-06-01T20:41:30+00:00; false positive baseline=0</td>
+      <td>Tác động user-facing trên chính cart-service. This detector is used as user-facing impact evidence, not as the RCA start. It fixes the MAD false-positive problem for 5xx by requiring percentile threshold, traffic volume, and persistence.</td>
+    </tr>
+    <tr>
       <td>EWMA trend</td>
       <td>cart-service/http_p99_latency_ms</td>
       <td>EWMA decision: EWMA(span=20) &gt; median + 3 * sigma; median=52.651; sigma=3.870; threshold=64.262; persistence=3/5</td>
@@ -511,13 +525,6 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>2026-06-01T16:28:00+00:00</td>
       <td>0</td>
       <td>formula=EWMA(span=20) &gt; median + 3 * 1.4826 * MAD; span=20; median=421947970.354; sigma=61843588.385; threshold=607478735.510; persistence=3/5</td>
-    </tr>
-    <tr>
-      <td>isolation_forest</td>
-      <td>cart-service/http_5xx_rate</td>
-      <td>2026-06-01T07:27:00+00:00</td>
-      <td>22</td>
-      <td>n_estimators=200; contamination=0.03; trained_on=first_6h; features=memory_usage_bytes,memory_limit_bytes,cpu_usage_percent,http_requests_per_sec,http_p99_latency_ms,http_5xx_rate,jvm_gc_pause_ms_avg,container_restart_count</td>
     </tr>
     <tr>
       <td>robust_mad_3alpha</td>
@@ -719,6 +726,13 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>cart failures propagate to callers</td>
     </tr>
     <tr>
+      <td>2026-06-01T20:41:30+00:00</td>
+      <td>cart-service</td>
+      <td>sustained 5xx impact</td>
+      <td>http_5xx_sustained decision: 5 of 10 points above threshold 3.0 with traffic volume guard</td>
+      <td>user-facing impact evidence after restart/downstream symptoms; not the RCA start</td>
+    </tr>
+    <tr>
       <td>2026-06-01T20:45:00+00:00</td>
       <td>payment-service</td>
       <td>upstream_timeout_rate</td>
@@ -736,6 +750,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <th>earliest_detection</th>
       <th>false_positive_count_first_6h</th>
       <th>supports_rca_chain</th>
+      <th>impact_signal</th>
       <th>detail</th>
     </tr>
   </thead>
@@ -747,6 +762,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td></td>
       <td>196</td>
       <td>False</td>
+      <td>False</td>
       <td>formula=EWMA(span=20) &gt; median + 3 * 1.4826 * MAD; span=20; median=0.157; sigma=0.036; threshold=0.266; persistence=3/5</td>
     </tr>
     <tr>
@@ -755,6 +771,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>cart-service/memory_limit_bytes</td>
       <td></td>
       <td>0</td>
+      <td>False</td>
       <td>False</td>
       <td>formula=EWMA(span=20) &gt; median + 3 * 1.4826 * MAD; span=20; median=2147483648.000; sigma=0.000; threshold=2147483648.000; persistence=3/5</td>
     </tr>
@@ -765,6 +782,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td></td>
       <td>188</td>
       <td>False</td>
+      <td>False</td>
       <td>formula=EWMA(span=20) &gt; median + 3 * 1.4826 * MAD; span=20; median=39.990; sigma=7.469; threshold=62.396; persistence=3/5</td>
     </tr>
     <tr>
@@ -773,6 +791,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>product-service/cpu_usage_percent</td>
       <td></td>
       <td>158</td>
+      <td>False</td>
       <td>False</td>
       <td>formula=EWMA(span=20) &gt; median + 3 * 1.4826 * MAD; span=20; median=19.583; sigma=2.567; threshold=27.285; persistence=3/5</td>
     </tr>
@@ -783,6 +802,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td></td>
       <td>181</td>
       <td>False</td>
+      <td>False</td>
       <td>formula=EWMA(span=20) &gt; median + 3 * 1.4826 * MAD; span=20; median=0.432; sigma=0.197; threshold=1.022; persistence=3/5</td>
     </tr>
     <tr>
@@ -791,6 +811,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>order-service/http_requests_per_sec</td>
       <td>2026-06-01T06:16:30+00:00</td>
       <td>0</td>
+      <td>False</td>
       <td>False</td>
       <td>formula=EWMA(span=20) &gt; median + 3 * 1.4826 * MAD; span=20; median=20.512; sigma=2.249; threshold=27.260; persistence=3/5</td>
     </tr>
@@ -801,6 +822,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>2026-06-01T06:46:00+00:00</td>
       <td>0</td>
       <td>False</td>
+      <td>False</td>
       <td>formula=EWMA(span=20) &gt; median + 3 * 1.4826 * MAD; span=20; median=27.187; sigma=2.884; threshold=35.838; persistence=3/5</td>
     </tr>
     <tr>
@@ -809,6 +831,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>api-gateway/http_requests_per_sec</td>
       <td>2026-06-01T07:00:30+00:00</td>
       <td>0</td>
+      <td>False</td>
       <td>False</td>
       <td>formula=EWMA(span=20) &gt; median + 3 * 1.4826 * MAD; span=20; median=54.317; sigma=6.285; threshold=73.172; persistence=3/5</td>
     </tr>
@@ -819,6 +842,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>2026-06-01T07:10:30+00:00</td>
       <td>0</td>
       <td>False</td>
+      <td>False</td>
       <td>formula=EWMA(span=20) &gt; median + 3 * 1.4826 * MAD; span=20; median=34.065; sigma=3.763; threshold=45.355; persistence=3/5</td>
     </tr>
     <tr>
@@ -827,6 +851,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>payment-service/http_requests_per_sec</td>
       <td>2026-06-01T07:10:30+00:00</td>
       <td>6</td>
+      <td>False</td>
       <td>False</td>
       <td>formula=EWMA(span=20) &gt; median + 3 * 1.4826 * MAD; span=20; median=13.769; sigma=1.701; threshold=18.873; persistence=3/5</td>
     </tr>
@@ -837,6 +862,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>2026-06-01T07:17:30+00:00</td>
       <td>0</td>
       <td>False</td>
+      <td>False</td>
       <td>formula=EWMA(span=20) &gt; median + 3 * 1.4826 * MAD; span=20; median=336.997; sigma=18.321; threshold=391.960; persistence=3/5</td>
     </tr>
     <tr>
@@ -845,6 +871,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>cart-service/cpu_usage_percent</td>
       <td>2026-06-01T07:27:30+00:00</td>
       <td>2</td>
+      <td>False</td>
       <td>False</td>
       <td>formula=EWMA(span=20) &gt; median + 3 * 1.4826 * MAD; span=20; median=20.520; sigma=1.996; threshold=26.508; persistence=3/5</td>
     </tr>
@@ -855,6 +882,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>2026-06-01T08:55:30+00:00</td>
       <td>0</td>
       <td>True</td>
+      <td>False</td>
       <td>formula=EWMA(span=20) &gt; median + 3 * 1.4826 * MAD; span=20; median=44.500; sigma=5.815; threshold=61.946; persistence=3/5</td>
     </tr>
     <tr>
@@ -863,6 +891,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>payment-service/upstream_timeout_rate</td>
       <td>2026-06-01T09:51:00+00:00</td>
       <td>3</td>
+      <td>False</td>
       <td>False</td>
       <td>formula=EWMA(span=20) &gt; median + 3 * 1.4826 * MAD; span=20; median=0.249; sigma=0.032; threshold=0.346; persistence=3/5</td>
     </tr>
@@ -873,6 +902,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>2026-06-01T12:23:30+00:00</td>
       <td>1</td>
       <td>False</td>
+      <td>False</td>
       <td>formula=EWMA(span=20) &gt; median + 3 * 1.4826 * MAD; span=20; median=0.196; sigma=0.023; threshold=0.266; persistence=3/5</td>
     </tr>
     <tr>
@@ -881,6 +911,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>cart-service/http_5xx_rate</td>
       <td>2026-06-01T13:51:30+00:00</td>
       <td>12</td>
+      <td>False</td>
       <td>False</td>
       <td>formula=EWMA(span=20) &gt; median + 3 * 1.4826 * MAD; span=20; median=0.556; sigma=0.160; threshold=1.037; persistence=3/5</td>
     </tr>
@@ -891,6 +922,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>2026-06-01T14:13:30+00:00</td>
       <td>7</td>
       <td>True</td>
+      <td>False</td>
       <td>formula=EWMA(span=20) &gt; median + 3 * 1.4826 * MAD; span=20; median=52.651; sigma=3.870; threshold=64.262; persistence=3/5</td>
     </tr>
     <tr>
@@ -899,6 +931,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>api-gateway/http_5xx_rate</td>
       <td>2026-06-01T15:32:30+00:00</td>
       <td>10</td>
+      <td>False</td>
       <td>False</td>
       <td>formula=EWMA(span=20) &gt; median + 3 * 1.4826 * MAD; span=20; median=0.352; sigma=0.105; threshold=0.667; persistence=3/5</td>
     </tr>
@@ -909,6 +942,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>2026-06-01T16:28:00+00:00</td>
       <td>0</td>
       <td>True</td>
+      <td>False</td>
       <td>formula=EWMA(span=20) &gt; median + 3 * 1.4826 * MAD; span=20; median=421947970.354; sigma=61843588.385; threshold=607478735.510; persistence=3/5</td>
     </tr>
     <tr>
@@ -917,6 +951,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>api-gateway/http_p99_latency_ms</td>
       <td>2026-06-01T17:37:30+00:00</td>
       <td>4</td>
+      <td>False</td>
       <td>False</td>
       <td>formula=EWMA(span=20) &gt; median + 3 * 1.4826 * MAD; span=20; median=22.174; sigma=2.599; threshold=29.971; persistence=3/5</td>
     </tr>
@@ -927,6 +962,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>2026-06-01T20:00:00+00:00</td>
       <td>0</td>
       <td>False</td>
+      <td>False</td>
       <td>formula=EWMA(span=20) &gt; median + 3 * 1.4826 * MAD; span=20; median=0.000; sigma=0.000; threshold=0.000; persistence=3/5</td>
     </tr>
     <tr>
@@ -935,6 +971,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>api-gateway/cart_upstream_error_rate</td>
       <td>2026-06-01T20:09:30+00:00</td>
       <td>0</td>
+      <td>False</td>
       <td>False</td>
       <td>formula=EWMA(span=20) &gt; median + 3 * 1.4826 * MAD; span=20; median=0.386; sigma=0.068; threshold=0.590; persistence=3/5</td>
     </tr>
@@ -945,6 +982,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>2026-06-01T20:30:30+00:00</td>
       <td>0</td>
       <td>False</td>
+      <td>False</td>
       <td>formula=EWMA(span=20) &gt; median + 3 * 1.4826 * MAD; span=20; median=0.417; sigma=0.049; threshold=0.564; persistence=3/5</td>
     </tr>
     <tr>
@@ -953,6 +991,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>order-service/http_p99_latency_ms</td>
       <td>2026-06-01T20:32:30+00:00</td>
       <td>2</td>
+      <td>False</td>
       <td>False</td>
       <td>formula=EWMA(span=20) &gt; median + 3 * 1.4826 * MAD; span=20; median=41.451; sigma=4.079; threshold=53.686; persistence=3/5</td>
     </tr>
@@ -963,6 +1002,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>2026-06-01T20:32:30+00:00</td>
       <td>0</td>
       <td>False</td>
+      <td>False</td>
       <td>formula=EWMA(span=20) &gt; median + 3 * 1.4826 * MAD; span=20; median=0.502; sigma=0.066; threshold=0.700; persistence=3/5</td>
     </tr>
     <tr>
@@ -972,7 +1012,58 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>2026-06-01T20:46:30+00:00</td>
       <td>0</td>
       <td>False</td>
+      <td>False</td>
       <td>formula=EWMA(span=20) &gt; median + 3 * 1.4826 * MAD; span=20; median=61.250; sigma=3.747; threshold=72.491; persistence=3/5</td>
+    </tr>
+    <tr>
+      <td>http_5xx_sustained</td>
+      <td>product-service</td>
+      <td>product-service/http_5xx_rate</td>
+      <td></td>
+      <td>0</td>
+      <td>False</td>
+      <td>False</td>
+      <td>formula=http_5xx_rate &gt; max(baseline_p99 * 1.5, 3.0) with volume guard; baseline_p50=0.455; baseline_p75=1.500; baseline_p95=8.503; baseline_p99=10.701; threshold=16.051; request_p50_guard=27.370; persistence=5/10; impact_signal=True</td>
+    </tr>
+    <tr>
+      <td>http_5xx_sustained</td>
+      <td>api-gateway</td>
+      <td>api-gateway/http_5xx_rate</td>
+      <td>2026-06-01T20:36:00+00:00</td>
+      <td>0</td>
+      <td>False</td>
+      <td>False</td>
+      <td>formula=http_5xx_rate &gt; max(baseline_p99 * 1.5, 3.0) with volume guard; baseline_p50=0.000; baseline_p75=0.633; baseline_p95=1.500; baseline_p99=1.500; threshold=3.000; request_p50_guard=54.620; persistence=5/10; impact_signal=True</td>
+    </tr>
+    <tr>
+      <td>http_5xx_sustained</td>
+      <td>cart-service</td>
+      <td>cart-service/http_5xx_rate</td>
+      <td>2026-06-01T20:41:30+00:00</td>
+      <td>0</td>
+      <td>False</td>
+      <td>True</td>
+      <td>formula=http_5xx_rate &gt; max(baseline_p99 * 1.5, 3.0) with volume guard; baseline_p50=0.065; baseline_p75=1.060; baseline_p95=2.000; baseline_p99=2.000; threshold=3.000; request_p50_guard=34.215; persistence=5/10; impact_signal=True</td>
+    </tr>
+    <tr>
+      <td>http_5xx_sustained</td>
+      <td>order-service</td>
+      <td>order-service/http_5xx_rate</td>
+      <td>2026-06-01T20:46:00+00:00</td>
+      <td>0</td>
+      <td>False</td>
+      <td>False</td>
+      <td>formula=http_5xx_rate &gt; max(baseline_p99 * 1.5, 3.0) with volume guard; baseline_p50=0.420; baseline_p75=0.610; baseline_p95=0.760; baseline_p99=0.790; threshold=3.000; request_p50_guard=20.605; persistence=5/10; impact_signal=True</td>
+    </tr>
+    <tr>
+      <td>http_5xx_sustained</td>
+      <td>payment-service</td>
+      <td>payment-service/http_5xx_rate</td>
+      <td>2026-06-01T21:32:30+00:00</td>
+      <td>0</td>
+      <td>False</td>
+      <td>False</td>
+      <td>formula=http_5xx_rate &gt; max(baseline_p99 * 1.5, 3.0) with volume guard; baseline_p50=0.190; baseline_p75=0.300; baseline_p95=0.370; baseline_p99=0.390; threshold=3.000; request_p50_guard=13.650; persistence=5/10; impact_signal=True</td>
     </tr>
     <tr>
       <td>isolation_forest</td>
@@ -980,6 +1071,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>product-service/multivariate</td>
       <td></td>
       <td>22</td>
+      <td>False</td>
       <td>False</td>
       <td>n_estimators=200; contamination=0.03; trained_on=first_6h; features=http_requests_per_sec,http_p99_latency_ms,cpu_usage_percent,http_5xx_rate</td>
     </tr>
@@ -990,6 +1082,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>2026-06-01T06:16:00+00:00</td>
       <td>22</td>
       <td>False</td>
+      <td>False</td>
       <td>n_estimators=200; contamination=0.03; trained_on=first_6h; features=http_requests_per_sec,http_p99_latency_ms,http_5xx_rate,upstream_timeout_rate</td>
     </tr>
     <tr>
@@ -998,6 +1091,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>api-gateway/http_requests_per_sec</td>
       <td>2026-06-01T06:59:00+00:00</td>
       <td>22</td>
+      <td>False</td>
       <td>False</td>
       <td>n_estimators=200; contamination=0.03; trained_on=first_6h; features=http_requests_per_sec,http_p99_latency_ms,http_5xx_rate,cart_upstream_error_rate,product_upstream_error_rate,active_connections</td>
     </tr>
@@ -1008,6 +1102,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>2026-06-01T07:09:00+00:00</td>
       <td>22</td>
       <td>False</td>
+      <td>False</td>
       <td>n_estimators=200; contamination=0.03; trained_on=first_6h; features=http_requests_per_sec,http_p99_latency_ms,http_5xx_rate,upstream_timeout_rate</td>
     </tr>
     <tr>
@@ -1016,7 +1111,8 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>cart-service/http_5xx_rate</td>
       <td>2026-06-01T07:27:00+00:00</td>
       <td>22</td>
-      <td>True</td>
+      <td>False</td>
+      <td>False</td>
       <td>n_estimators=200; contamination=0.03; trained_on=first_6h; features=memory_usage_bytes,memory_limit_bytes,cpu_usage_percent,http_requests_per_sec,http_p99_latency_ms,http_5xx_rate,jvm_gc_pause_ms_avg,container_restart_count</td>
     </tr>
     <tr>
@@ -1025,6 +1121,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>api-gateway/product_upstream_error_rate</td>
       <td></td>
       <td>167</td>
+      <td>False</td>
       <td>False</td>
       <td>formula=median + 3 * 1.4826 * MAD; median=0.200; sigma=0.148; threshold=0.645; persistence=3/5</td>
     </tr>
@@ -1035,6 +1132,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td></td>
       <td>0</td>
       <td>False</td>
+      <td>False</td>
       <td>formula=median + 3 * 1.4826 * MAD; median=2147483648.000; sigma=0.000; threshold=2147483648.000; persistence=3/5</td>
     </tr>
     <tr>
@@ -1043,6 +1141,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>product-service/http_p99_latency_ms</td>
       <td></td>
       <td>163</td>
+      <td>False</td>
       <td>False</td>
       <td>formula=median + 3 * 1.4826 * MAD; median=44.400; sigma=28.169; threshold=128.908; persistence=3/5</td>
     </tr>
@@ -1053,6 +1152,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td></td>
       <td>96</td>
       <td>False</td>
+      <td>False</td>
       <td>formula=median + 3 * 1.4826 * MAD; median=20.925; sigma=9.785; threshold=50.280; persistence=3/5</td>
     </tr>
     <tr>
@@ -1061,6 +1161,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>product-service/http_5xx_rate</td>
       <td></td>
       <td>155</td>
+      <td>False</td>
       <td>False</td>
       <td>formula=median + 3 * 1.4826 * MAD; median=0.455; sigma=0.675; threshold=2.479; persistence=3/5</td>
     </tr>
@@ -1071,6 +1172,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>2026-06-01T06:00:00+00:00</td>
       <td>358</td>
       <td>False</td>
+      <td>False</td>
       <td>formula=median + 3 * 1.4826 * MAD; median=0.000; sigma=0.000; threshold=0.000; persistence=3/5</td>
     </tr>
     <tr>
@@ -1079,6 +1181,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>cart-service/http_5xx_rate</td>
       <td>2026-06-01T06:08:00+00:00</td>
       <td>297</td>
+      <td>False</td>
       <td>False</td>
       <td>formula=median + 3 * 1.4826 * MAD; median=0.065; sigma=0.096; threshold=0.354; persistence=3/5</td>
     </tr>
@@ -1089,6 +1192,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>2026-06-01T06:47:00+00:00</td>
       <td>1</td>
       <td>False</td>
+      <td>False</td>
       <td>formula=median + 3 * 1.4826 * MAD; median=336.000; sigma=19.274; threshold=393.821; persistence=3/5</td>
     </tr>
     <tr>
@@ -1097,6 +1201,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>product-service/http_requests_per_sec</td>
       <td>2026-06-01T06:50:30+00:00</td>
       <td>1</td>
+      <td>False</td>
       <td>False</td>
       <td>formula=median + 3 * 1.4826 * MAD; median=27.370; sigma=4.744; threshold=41.603; persistence=3/5</td>
     </tr>
@@ -1107,6 +1212,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>2026-06-01T07:02:30+00:00</td>
       <td>0</td>
       <td>False</td>
+      <td>False</td>
       <td>formula=median + 3 * 1.4826 * MAD; median=54.620; sigma=8.540; threshold=80.239; persistence=3/5</td>
     </tr>
     <tr>
@@ -1115,6 +1221,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>cart-service/http_requests_per_sec</td>
       <td>2026-06-01T07:32:00+00:00</td>
       <td>2</td>
+      <td>False</td>
       <td>False</td>
       <td>formula=median + 3 * 1.4826 * MAD; median=34.215; sigma=5.908; threshold=51.939; persistence=3/5</td>
     </tr>
@@ -1125,6 +1232,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>2026-06-01T07:40:30+00:00</td>
       <td>2</td>
       <td>False</td>
+      <td>False</td>
       <td>formula=median + 3 * 1.4826 * MAD; median=13.650; sigma=2.439; threshold=20.967; persistence=3/5</td>
     </tr>
     <tr>
@@ -1133,6 +1241,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>order-service/http_requests_per_sec</td>
       <td>2026-06-01T07:57:00+00:00</td>
       <td>2</td>
+      <td>False</td>
       <td>False</td>
       <td>formula=median + 3 * 1.4826 * MAD; median=20.605; sigma=4.307; threshold=33.526; persistence=3/5</td>
     </tr>
@@ -1143,6 +1252,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>2026-06-01T14:40:00+00:00</td>
       <td>1</td>
       <td>True</td>
+      <td>False</td>
       <td>formula=median + 3 * 1.4826 * MAD; median=50.100; sigma=24.241; threshold=122.822; persistence=3/5</td>
     </tr>
     <tr>
@@ -1152,6 +1262,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>2026-06-01T16:26:00+00:00</td>
       <td>0</td>
       <td>True</td>
+      <td>False</td>
       <td>formula=median + 3 * 1.4826 * MAD; median=418523156.500; sigma=63488833.462; threshold=608989656.886; persistence=3/5</td>
     </tr>
     <tr>
@@ -1161,6 +1272,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>2026-06-01T17:50:30+00:00</td>
       <td>0</td>
       <td>True</td>
+      <td>False</td>
       <td>formula=median + 3 * 1.4826 * MAD; median=45.400; sigma=19.644; threshold=104.333; persistence=3/5</td>
     </tr>
     <tr>
@@ -1169,6 +1281,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>cart-service/cpu_usage_percent</td>
       <td>2026-06-01T18:13:30+00:00</td>
       <td>5</td>
+      <td>False</td>
       <td>False</td>
       <td>formula=median + 3 * 1.4826 * MAD; median=20.345; sigma=7.806; threshold=43.763; persistence=3/5</td>
     </tr>
@@ -1179,6 +1292,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>2026-06-01T20:00:00+00:00</td>
       <td>0</td>
       <td>True</td>
+      <td>False</td>
       <td>formula=median + 3 * 1.4826 * MAD; median=0.000; sigma=0.000; threshold=0.000; persistence=3/5</td>
     </tr>
     <tr>
@@ -1187,6 +1301,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>api-gateway/cart_upstream_error_rate</td>
       <td>2026-06-01T20:08:00+00:00</td>
       <td>0</td>
+      <td>False</td>
       <td>False</td>
       <td>formula=median + 3 * 1.4826 * MAD; median=0.380; sigma=0.297; threshold=1.270; persistence=3/5</td>
     </tr>
@@ -1197,6 +1312,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>2026-06-01T20:30:30+00:00</td>
       <td>0</td>
       <td>False</td>
+      <td>False</td>
       <td>formula=median + 3 * 1.4826 * MAD; median=0.420; sigma=0.282; threshold=1.265; persistence=3/5</td>
     </tr>
     <tr>
@@ -1205,6 +1321,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>order-service/upstream_timeout_rate</td>
       <td>2026-06-01T20:32:00+00:00</td>
       <td>0</td>
+      <td>False</td>
       <td>False</td>
       <td>formula=median + 3 * 1.4826 * MAD; median=0.490; sigma=0.371; threshold=1.602; persistence=3/5</td>
     </tr>
@@ -1215,6 +1332,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>2026-06-01T20:32:30+00:00</td>
       <td>3</td>
       <td>False</td>
+      <td>False</td>
       <td>formula=median + 3 * 1.4826 * MAD; median=39.600; sigma=19.570; threshold=98.311; persistence=3/5</td>
     </tr>
     <tr>
@@ -1223,6 +1341,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>payment-service/http_5xx_rate</td>
       <td>2026-06-01T20:45:00+00:00</td>
       <td>0</td>
+      <td>False</td>
       <td>False</td>
       <td>formula=median + 3 * 1.4826 * MAD; median=0.190; sigma=0.148; threshold=0.635; persistence=3/5</td>
     </tr>
@@ -1233,6 +1352,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>2026-06-01T20:45:00+00:00</td>
       <td>0</td>
       <td>False</td>
+      <td>False</td>
       <td>formula=median + 3 * 1.4826 * MAD; median=0.250; sigma=0.193; threshold=0.828; persistence=3/5</td>
     </tr>
     <tr>
@@ -1242,6 +1362,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>2026-06-01T21:06:30+00:00</td>
       <td>0</td>
       <td>False</td>
+      <td>False</td>
       <td>formula=median + 3 * 1.4826 * MAD; median=20.200; sigma=14.974; threshold=65.123; persistence=3/5</td>
     </tr>
     <tr>
@@ -1250,6 +1371,7 @@ code { background: #eef2f7; padding: 1px 4px; border-radius: 4px; }
       <td>payment-service/http_p99_latency_ms</td>
       <td>2026-06-01T21:45:00+00:00</td>
       <td>0</td>
+      <td>False</td>
       <td>False</td>
       <td>formula=median + 3 * 1.4826 * MAD; median=59.250; sigma=21.275; threshold=123.076; persistence=3/5</td>
     </tr>

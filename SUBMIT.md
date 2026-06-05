@@ -2,12 +2,15 @@
 
 ## Group Reflection
 
-Our analysis treated the incident as an evidence-ordering problem instead of starting from the alert text. We first validated the telemetry shape, row counts, timestamp ranges, duplicate records, gaps, nulls, and baseline behavior. Then we compared a robust MAD detector, EWMA trend smoothing, and IsolationForest. The robust method was easiest to defend because each anomaly maps back to a concrete service and metric with a baseline threshold. IsolationForest was useful as a secondary check, while EWMA helped explain the slope and timing visually. For logs, we calibrated template extraction so important messages did not collapse into one generic upstream failure. The resulting timeline shows cart-service memory and GC pressure, cache eviction failures, OOMKilled events, restart growth, and downstream timeout/5xx propagation. The main lesson is that early operational signals were present before the page, but they required correlating metrics and template-level logs rather than reading isolated alerts.
+Nhóm xử lý sự cố như một bài toán sắp xếp bằng chứng thay vì bắt đầu từ alert text. Nhóm đã kiểm tra hình dạng telemetry, số dòng, khoảng thời gian timestamp, bản ghi trùng lặp, khoảng trống dữ liệu, null, và hành vi baseline. Sau đó nhóm so sánh robust MAD detector, EWMA trend smoothing, và IsolationForest. Robust MAD là phương án dễ bảo vệ nhất vì mỗi anomaly đều gắn với service và metric cụ thể cùng ngưỡng baseline rõ ràng. IsolationForest được dùng như kiểm tra phụ, còn EWMA giúp giải thích xu hướng và thời điểm theo trực quan. Với logs, nhóm hiệu chỉnh template extraction để các message quan trọng không bị gom vào một lỗi upstream chung. Timeline kết quả cho thấy cart-service chịu áp lực memory và GC, cache eviction failures, OOMKilled events, tăng restart, rồi lan sang downstream timeout/5xx. Bài học chính là các tín hiệu vận hành xuất hiện sớm trước khi page, nhưng cần liên kết metrics và template-level logs thay vì đọc từng alert rời rạc.
 
 ## Contributions
 
-- Member 1: metrics validation and robust MAD anomaly analysis.
-- Member 2: IsolationForest and EWMA comparison.
-- Member 3: log preprocessing and Drain3 template calibration.
-- Member 4: incident timeline and root-cause synthesis.
-- Member 5: dashboard, charts, and report packaging.
+- Đinh Danh Nam: Anomaly Detection + RCA.
+- Huỳnh Nguyễn Ngọc Tân: EDA.
+- Cái Xuân Hoà: Build data pipeline.
+- Nguyễn Trần Huy Vũ: Build streaming -> ingestion -> RCA pipeline.
+- Huỳnh Xuân Hậu: Anomaly Detection + RCA.
+- Nguyễn Tất Văn: Anomaly Detection + RCA.
+- Trần Đình Thông: EDA.
+- Lê Ngọc Thành Tâm: Build data pipeline.

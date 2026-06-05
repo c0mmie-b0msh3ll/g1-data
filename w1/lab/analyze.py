@@ -42,6 +42,7 @@ class Detection:
     false_positive_count: int
     detail: str
     supports_rca_chain: bool
+    impact_signal: bool = False
 
 
 def ensure_dirs() -> None:
@@ -142,6 +143,17 @@ def persistent_first(mask: pd.Series, timestamps: pd.Series, hits: int = PERSIST
     return pd.NaT
 
 
+def sustained_decision_time(mask: pd.Series, timestamps: pd.Series, hits: int, window: int, start_at: pd.Timestamp) -> pd.Timestamp | pd.NaT:
+    vals = mask.fillna(False).astype(int).to_numpy()
+    for idx in range(len(vals)):
+        if timestamps.iloc[idx] < start_at:
+            continue
+        start = max(0, idx - window + 1)
+        if vals[start : idx + 1].sum() >= hits:
+            return timestamps.iloc[idx]
+    return pd.NaT
+
+
 def robust_mad_anomalies(metrics: dict[str, pd.DataFrame]) -> tuple[pd.DataFrame, list[Detection]]:
     base_end = baseline_end(metrics)
     all_rows = []
@@ -225,6 +237,45 @@ def ewma_detections(metrics: dict[str, pd.DataFrame]) -> list[Detection]:
     return detections
 
 
+def http_5xx_sustained_detections(metrics: dict[str, pd.DataFrame]) -> list[Detection]:
+    base_end = baseline_end(metrics)
+    detections = []
+    for service, df in metrics.items():
+        if "http_5xx_rate" not in df.columns or "http_requests_per_sec" not in df.columns:
+            continue
+        base = df.loc[df["timestamp"] < base_end]
+        baseline_5xx = base["http_5xx_rate"].astype(float)
+        baseline_rps = base["http_requests_per_sec"].astype(float)
+        p50_rps = float(baseline_rps.quantile(0.50))
+        p75 = float(baseline_5xx.quantile(0.75))
+        p95 = float(baseline_5xx.quantile(0.95))
+        p99 = float(baseline_5xx.quantile(0.99))
+        threshold = max(p99 * 1.5, 3.0)
+        rate = df["http_5xx_rate"].astype(float)
+        rps = df["http_requests_per_sec"].astype(float)
+        mask = (rate > threshold) & (rps >= p50_rps)
+        first_after_base = sustained_decision_time(mask, df["timestamp"], hits=5, window=10, start_at=base_end)
+        false_pos = int(mask[df["timestamp"] < base_end].sum())
+        detections.append(
+            Detection(
+                "http_5xx_sustained",
+                service,
+                "http_5xx_rate",
+                first_after_base,
+                false_pos,
+                (
+                    "formula=http_5xx_rate > max(baseline_p99 * 1.5, 3.0) with volume guard; "
+                    f"baseline_p50={float(baseline_5xx.quantile(0.50)):.3f}; "
+                    f"baseline_p75={p75:.3f}; baseline_p95={p95:.3f}; baseline_p99={p99:.3f}; "
+                    f"threshold={threshold:.3f}; request_p50_guard={p50_rps:.3f}; persistence=5/10; impact_signal=True"
+                ),
+                False,
+                service == "cart-service",
+            )
+        )
+    return detections
+
+
 def isolation_forest_detections(metrics: dict[str, pd.DataFrame]) -> list[Detection]:
     base_end = baseline_end(metrics)
     detections = []
@@ -254,7 +305,7 @@ def isolation_forest_detections(metrics: dict[str, pd.DataFrame]) -> list[Detect
                 first_after_base,
                 false_pos,
                 f"n_estimators=200; contamination=0.03; trained_on=first_{BASELINE_HOURS}h; features={','.join(cols)}",
-                service == "cart-service",
+                service == "cart-service" and top_metric != "http_5xx_rate",
             )
         )
     return detections
@@ -271,6 +322,7 @@ def write_method_comparison(detections: list[Detection]) -> pd.DataFrame:
                 "earliest_detection": "" if pd.isna(d.timestamp) else d.timestamp.isoformat(),
                 "false_positive_count_first_6h": d.false_positive_count,
                 "supports_rca_chain": d.supports_rca_chain,
+                "impact_signal": d.impact_signal,
                 "detail": d.detail,
             }
         )
@@ -291,9 +343,9 @@ def detector_observability(comparison: pd.DataFrame) -> pd.DataFrame:
         "payment-service/upstream_timeout_rate": "Caller payment bị ảnh hưởng muộn hơn trong checkout.",
     }
     rows = []
-    detail_re = re.compile(r"(formula|span|median|sigma|threshold|persistence)=([^;]+)")
+    detail_re = re.compile(r"(formula|span|median|sigma|threshold|persistence|baseline_p50|baseline_p75|baseline_p95|baseline_p99|request_p50_guard)=([^;]+)")
     subset = comparison[
-        comparison["method"].isin(["robust_mad_3alpha", "ewma_trend"])
+        comparison["method"].isin(["robust_mad_3alpha", "ewma_trend", "http_5xx_sustained"])
         & comparison["affected_metric_service"].isin(focus)
     ].copy()
     for _, row in subset.iterrows():
@@ -308,6 +360,14 @@ def detector_observability(comparison: pd.DataFrame) -> pd.DataFrame:
                 f"median={parts.get('median', 'n/a')}; sigma={parts.get('sigma', 'n/a')}; "
                 f"threshold={parts.get('threshold', 'n/a')}; persistence={parts.get('persistence', 'n/a')}"
             )
+        elif method == "http_5xx_sustained":
+            threshold_text = (
+                "Sustained 5xx impact detector: rate > max(baseline p99 * 1.5, 3.0) "
+                f"and requests >= baseline request p50; baseline_p50={parts.get('baseline_p50', 'n/a')}; "
+                f"baseline_p75={parts.get('baseline_p75', 'n/a')}; baseline_p95={parts.get('baseline_p95', 'n/a')}; "
+                f"baseline_p99={parts.get('baseline_p99', 'n/a')}; threshold={parts.get('threshold', 'n/a')}; "
+                f"persistence={parts.get('persistence', 'n/a')}"
+            )
         else:
             threshold_text = (
                 f"EWMA decision: EWMA(span={parts.get('span', '20')}) > median + 3 * sigma; "
@@ -319,7 +379,12 @@ def detector_observability(comparison: pd.DataFrame) -> pd.DataFrame:
             if detected
             else f"Không phát hiện anomaly kéo dài sau baseline; false positive baseline={row['false_positive_count_first_6h']}"
         )
-        if method == "ewma_trend":
+        if method == "http_5xx_sustained":
+            interpretation = (
+                f"{focus[metric]} This detector is used as user-facing impact evidence, not as the RCA start. "
+                "It fixes the MAD false-positive problem for 5xx by requiring percentile threshold, traffic volume, and persistence."
+            )
+        elif method == "ewma_trend":
             interpretation = (
                 f"{focus[metric]} EWMA is retained as a smoothed trend view only. "
                 f"With span={parts.get('span', '20')} it can show drift, but this row is not used as the final RCA decision label."
@@ -339,7 +404,11 @@ def detector_observability(comparison: pd.DataFrame) -> pd.DataFrame:
             interpretation = f"{focus[metric]} Detector không thấy tín hiệu kéo dài đủ mạnh sau baseline."
         rows.append(
             {
-                "detector": "MAD 3-sigma" if method == "robust_mad_3alpha" else "EWMA trend",
+                "detector": {
+                    "robust_mad_3alpha": "MAD 3-sigma",
+                    "ewma_trend": "EWMA trend",
+                    "http_5xx_sustained": "sustained 5xx impact detector",
+                }[method],
                 "metric": metric,
                 "decision_threshold": threshold_text,
                 "result": result,
@@ -456,7 +525,7 @@ def log_template_analysis(logs: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFram
     return grouped, ts, drain_comparison
 
 
-def important_events(metrics: dict[str, pd.DataFrame], logs: pd.DataFrame, anomalies: pd.DataFrame, templates: pd.DataFrame) -> pd.DataFrame:
+def important_events(metrics: dict[str, pd.DataFrame], logs: pd.DataFrame, anomalies: pd.DataFrame, templates: pd.DataFrame, comparison: pd.DataFrame) -> pd.DataFrame:
     rows = []
 
     def add(ts, stage, service, signal_type, signal, evidence, rca):
@@ -515,6 +584,23 @@ def important_events(metrics: dict[str, pd.DataFrame], logs: pd.DataFrame, anoma
         if not match.empty:
             first = pd.to_datetime(match["timestamp"], utc=True).min()
             add(first, "downstream symptom", service, "metric", metric, f"robust MAD anomaly begins at {first.isoformat()}", "cart failures propagate to callers")
+
+    impact = comparison[
+        (comparison["method"] == "http_5xx_sustained")
+        & (comparison["affected_metric_service"] == "cart-service/http_5xx_rate")
+        & comparison["earliest_detection"].astype(str).str.strip().ne("")
+    ]
+    if not impact.empty:
+        ts = pd.to_datetime(impact["earliest_detection"].iloc[0], utc=True)
+        add(
+            ts,
+            "impact signal",
+            "cart-service",
+            "metric",
+            "sustained 5xx impact",
+            "http_5xx_sustained decision: 5 of 10 points above threshold 3.0 with traffic volume guard",
+            "user-facing impact evidence after restart/downstream symptoms; not the RCA start",
+        )
 
     timeline = pd.DataFrame(rows).drop_duplicates().sort_values("timestamp")
     timeline.to_csv(OUT / "incident_timeline.csv", index=False)
@@ -615,12 +701,31 @@ WHAT: the evidence supports a cart-service memory pressure incident. ProductCata
 
 The final primary detector is robust 3-alpha/MAD against the first {BASELINE_HOURS} hours because it is explainable and produces service/metric evidence that maps directly to the incident. IsolationForest is retained as a multivariate confirmation method. EWMA is used for trend smoothing and early slope visualization, not as the main classifier. Signals with high baseline false-positive counts, such as `cart-service/http_5xx_rate`, are treated as weak threshold crossings rather than reliable RCA start markers.
 
+The `cart-service/http_5xx_rate` audit is the important exception. MAD calculation was correct, but this metric is noisy/zero-inflated, so the detector choice was wrong for 5xx impact. Its baseline median is `0.065`, MAD threshold is `0.354`, and the baseline distribution already reaches p75 `1.06` and p95/p99 `2.00`, producing `297/720` baseline false positives.
+
+The corrected `http_5xx_sustained` detector is a windowed rule, not an ML model. It uses the first 6 hours as baseline, computes baseline p99 `2.00`, sets threshold `max(baseline_p99 * 1.5, 3.0) = 3.00`, requires `5/10` recent 30-second points above threshold, and applies a request-volume guard `http_requests_per_sec >= baseline p50`. For cart-service it detects sustained impact at `2026-06-01T20:41:30+00:00` with baseline FP `0`, `impact_signal=True`, and `supports_rca_chain=False`. This is impact evidence after restart/downstream symptoms, not the RCA start.
+
 For readers who learned the classic 3-alpha rule as `mean + 3 * std`: this report uses the same 3-alpha idea, but with robust statistics. Instead of `mean`, it uses the baseline `median`. Instead of `std`, it uses `1.4826 * MAD`, where `MAD = median(|x - median(x)|)`. The factor `1.4826` converts MAD to a standard-deviation-like scale when the data is approximately normal. This makes the threshold less sensitive to baseline spikes:
 
 ```text
 classic 3-alpha: mean + 3 * std
 robust 3-alpha: median + 3 * 1.4826 * MAD
 ```
+
+## EDA Figure Support For 5xx Audit
+
+Deck HTML dùng thêm figure baseline 6 giờ được generate trực tiếp từ `g1/metrics/cart-service.csv`:
+
+- `outputs/charts/cart-5xx-baseline-6h-audit.png`: time series + histogram baseline 6 giờ đầu của `cart-service/http_5xx_rate`.
+
+Lý do dùng baseline 6 giờ: đây là cửa sổ trước giai đoạn OOM/restart, đủ 720 điểm ở interval 30 giây để tính median, MAD và percentile. Tuy nhiên chính figure baseline cho thấy caveat của metric 5xx: MAD threshold `0.354` nằm quá thấp so với nhiễu baseline, khiến `297/720` điểm baseline bị flag.
+
+Deck cũng dùng figure thật từ `EDA.ipynb`:
+
+- `outputs/presentations/notebook-assets/notebook-figure-01.png`: histogram/density của `cart__http_5xx_rate`.
+- `outputs/presentations/notebook-assets/notebook-figure-02.png`: ACF plot của `cart__http_5xx_rate`.
+
+Histogram cho thấy phần lớn giá trị nằm sát 0 nhưng có đuôi kéo dài đến `16.78`; output EDA ghi `skew=2.77`, `p50=0.38`, `p95=9.53`, `p99=14.43`, `max=16.78`. ACF plot cho thấy metric có tương quan theo thời gian, nên detector 5xx nên đọc theo cửa sổ thời gian thay vì từng crossing đơn lẻ.
 
 ## Log Calibration
 
@@ -1097,9 +1202,21 @@ def verify_outputs() -> None:
 
     comparison = pd.read_csv(OUT / "method_comparison.csv")
     methods = set(comparison["method"])
-    required = {"robust_mad_3alpha", "ewma_trend", "isolation_forest"}
+    required = {"robust_mad_3alpha", "ewma_trend", "isolation_forest", "http_5xx_sustained"}
     if not required.issubset(methods):
         raise RuntimeError(f"method_comparison.csv missing methods: {required - methods}")
+    cart_mad = comparison[
+        (comparison["method"] == "robust_mad_3alpha")
+        & (comparison["affected_metric_service"] == "cart-service/http_5xx_rate")
+    ]
+    if cart_mad.empty or cart_mad["earliest_detection"].iloc[0] != "2026-06-01T06:08:00+00:00" or int(cart_mad["false_positive_count_first_6h"].iloc[0]) != 297:
+        raise RuntimeError("cart-service/http_5xx_rate MAD failure row changed unexpectedly")
+    cart_5xx = comparison[
+        (comparison["method"] == "http_5xx_sustained")
+        & (comparison["affected_metric_service"] == "cart-service/http_5xx_rate")
+    ]
+    if cart_5xx.empty or cart_5xx["earliest_detection"].iloc[0] != "2026-06-01T20:41:30+00:00" or int(cart_5xx["false_positive_count_first_6h"].iloc[0]) != 0:
+        raise RuntimeError("cart-service/http_5xx_rate sustained detector did not match expected timing/FP")
 
     drain = pd.read_csv(OUT / "drain_comparison.csv")
     if not drain["selected"].any():
@@ -1111,6 +1228,8 @@ def verify_outputs() -> None:
             raise RuntimeError(f"selected templates do not preserve pattern: {pattern}")
 
     timeline = pd.read_csv(OUT / "incident_timeline.csv")
+    if timeline["timestamp"].iloc[0] != "2026-06-01T06:30:32.992000+00:00":
+        raise RuntimeError("incident_timeline.csv no longer starts with reliable GC log evidence")
     def ts_for(pattern):
         rows = timeline[timeline["signal"].str.contains(pattern, case=False, na=False)]
         return pd.NaT if rows.empty else pd.to_datetime(rows["timestamp"], utc=True, format="mixed").min()
@@ -1169,10 +1288,10 @@ def main() -> None:
     logs = load_logs()
     summary = validate_and_summarize_metrics(metrics)
     anomalies, mad_detections = robust_mad_anomalies(metrics)
-    detections = mad_detections + ewma_detections(metrics) + isolation_forest_detections(metrics)
+    detections = mad_detections + http_5xx_sustained_detections(metrics) + ewma_detections(metrics) + isolation_forest_detections(metrics)
     comparison = write_method_comparison(detections)
     templates, template_ts, drain_comparison = log_template_analysis(logs)
-    timeline = important_events(metrics, logs, anomalies, templates)
+    timeline = important_events(metrics, logs, anomalies, templates, comparison)
     chart_paths = plot_metric_panels(metrics, anomalies) + plot_log_panels(template_ts, templates)
     generate_reports(summary, comparison, drain_comparison, templates, timeline, chart_paths)
     verify_outputs()
